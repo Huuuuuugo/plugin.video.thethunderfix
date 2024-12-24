@@ -8,5 +8,5 @@
 
 [**DOWNLOAD:** plugin.video.thethunder](https://github.com/Huuuuuugo/plugin.video.thethunderfix/releases/download/v1.0/plugin.video.thethunderfix-1.0.zip)
 
-**INSTALE APARTI DE UM ARQUIVO ZIP**
+**INSTALE A PARTI DE UM ARQUIVO ZIP**
 ![screenshot](https://i.imgur.com/vnN0oIB.jpeg)
