@@ -2,6 +2,7 @@
 #from thunderlib.plugin.functions import log
 from resources.lib.autotranslate import AutoTranslate
 from kodi_helper import requests
+import datetime
 import re
 
 
@@ -66,29 +67,22 @@ def search_movies_api(search,page):
     except:
         return 0,False
 
-def get_date():
-    api_time = 'http://worldtimeapi.org/api/timezone/America/New_York'
-    try:
-        r = requests.get(api_time,headers={'User-Agent': USER_AGENT})
-        src = r.json()
-    except:
-        src = {}     
-    datetime = src.get('datetime', '')
-    if datetime:
-        last_year = datetime.split('-')[0]
-        fulldate = datetime.split('T')[0]
-        fulldate = str(fulldate)
-    else:
-        from datetime import date
-        date_today = date.today()
-        last_year = date_today.year
-        fulldate = str(date_today)
-    return last_year, fulldate
+def get_dates(days, reverse=True):
+    current_date = get_current_date(return_str=False)
+    if reverse: 
+        new_date = (current_date - datetime.timedelta(days=days)).strftime('%Y-%m-%d')
+    else: 
+        new_date = (current_date + datetime.timedelta(days=days)).strftime('%Y-%m-%d')
+    return str(current_date), new_date
+
+def get_current_date(return_str=True):
+	if return_str: return str(datetime.date.today())
+	else: return datetime.date.today()
 
 def tv_shows_premiere_api(page):
-    year_datetime, date = get_date()
-    url1 = 'https://api.themoviedb.org/3/discover/tv?api_key={0}&sort_by=popularity.desc&first_air_date_year={1}&timezone=America%2FNew_York&include_null_first_air_ates=false&page={2}&language='.format(API_KEY1,str(year_datetime),str(page)) + AutoTranslate.language('lang-api')
-    url2 = 'https://api.themoviedb.org/3/discover/tv?api_key={0}&sort_by=popularity.desc&first_air_date_year={1}&timezone=America%2FNew_York&include_null_first_air_ates=false&page={2}&language='.format(API_KEY2,str(year_datetime),str(page)) + AutoTranslate.language('lang-api')
+    current_date
+    url1 = 'https://api.themoviedb.org/3/discover/tv?api_key={0}&sort_by=popularity.desc&first_air_date_year={1}&include_null_first_air_ates=false&page={2}&language='.format(API_KEY1,str(current_date),str(page)) + AutoTranslate.language('lang-api')
+    url2 = 'https://api.themoviedb.org/3/discover/tv?api_key={0}&sort_by=popularity.desc&first_air_date_year={1}&include_null_first_air_ates=false&page={2}&language='.format(API_KEY2,str(current_date),str(page)) + AutoTranslate.language('lang-api')
     try:
         src = request_api(url1,url2)
         total_pages = src.get('total_pages', 0)
