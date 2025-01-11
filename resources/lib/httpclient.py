@@ -80,7 +80,7 @@ def get_current_date(return_str=True):
 	else: return datetime.date.today()
 
 def tv_shows_premiere_api(page):
-    current_date
+    current_date = get_current_date()
     url1 = 'https://api.themoviedb.org/3/discover/tv?api_key={0}&sort_by=popularity.desc&first_air_date_year={1}&include_null_first_air_ates=false&page={2}&language='.format(API_KEY1,str(current_date),str(page)) + AutoTranslate.language('lang-api')
     url2 = 'https://api.themoviedb.org/3/discover/tv?api_key={0}&sort_by=popularity.desc&first_air_date_year={1}&include_null_first_air_ates=false&page={2}&language='.format(API_KEY2,str(current_date),str(page)) + AutoTranslate.language('lang-api')
     try:
