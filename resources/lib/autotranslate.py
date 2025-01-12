@@ -113,7 +113,7 @@ class AutoTranslate:
                 'New movies': 'New movies',
                 'Trending': 'Trending',
                 'Search Movies': 'Search Movies',
-                'Search Movies': 'Search Tv Shows',
+                'Search Tv Shows': 'Search Tv Shows',
                 'New Tv Shows': 'New Tv Shows',
                 'New Episodes': 'New Episodes',
                 'Page': 'Page ',
