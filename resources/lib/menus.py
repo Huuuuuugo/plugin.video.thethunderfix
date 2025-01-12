@@ -36,7 +36,7 @@ class thunder(myAddon):
         self.setcontent('videos')
         self.addMenuItem({'name':'[B]' + AutoTranslate.language('New movies') + '[/B]','action': 'premiere_movies', 'mediatype': 'video', 'iconimage': self.icon('premiere')})
         self.addMenuItem({'name':'[B]' + AutoTranslate.language('Trending') + '[/B]','action': 'trending_movies', 'mediatype': 'video', 'iconimage': self.icon('trending')})
-        self.addMenuItem({'name':'[B]' + AutoTranslate.language('Search') + '[/B]','action': 'search_movies', 'mediatype': 'video', 'iconimage': self.icon('search')})
+        self.addMenuItem({'name':'[B]' + AutoTranslate.language('Search Movies') + '[/B]','action': 'search_movies', 'mediatype': 'video', 'iconimage': self.icon('search')})
         self.end()
     
     def tv_shows(self): 
@@ -44,7 +44,7 @@ class thunder(myAddon):
         self.addMenuItem({'name':'[B]' + AutoTranslate.language('New Tv Shows') + '[/B]','action': 'premiere_tv_shows', 'mediatype': 'video', 'iconimage': self.icon('premiere')})
         self.addMenuItem({'name':'[B]' + AutoTranslate.language('Trending') + '[/B]','action': 'trending_tv_shows', 'mediatype': 'video', 'iconimage': self.icon('trending')})
         self.addMenuItem({'name':'[B]' + AutoTranslate.language('New Episodes') + '[/B]','action': 'new_episodes', 'mediatype': 'video', 'iconimage': self.icon('new_episodes')})
-        self.addMenuItem({'name':'[B]' + AutoTranslate.language('Search') + '[/B]','action': 'search_tv_shows', 'mediatype': 'video', 'iconimage': self.icon('search')})
+        self.addMenuItem({'name':'[B]' + AutoTranslate.language('Search Tv Shows') + '[/B]','action': 'search_tv_shows', 'mediatype': 'video', 'iconimage': self.icon('search')})
         self.end()
 
     def open_movie(self,id):
