@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 #from thunderlib.plugin.functions import log
+from resources.lib.utils import get_current_date, get_dates, years_tvshows
 from resources.lib.autotranslate import AutoTranslate
 from kodi_helper import requests
 import re
