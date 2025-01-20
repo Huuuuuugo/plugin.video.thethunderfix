@@ -27,7 +27,8 @@ class thunder(myAddon):
     def home(self):
         self.setcontent('videos')        
         self.addMenuItem({'name':'[B]' + AutoTranslate.language('Movies') + '[/B]','action': 'movies', 'mediatype': 'video', 'iconimage': self.icon('movies')})
-        self.addMenuItem({'name':'[B]' + AutoTranslate.language('Tv Shows') + '[/B]','action': 'tv_shows', 'mediatype': 'video', 'iconimage': self.icon('tvshows')})
+        self.addMenuItem({'name':'[B]' + AutoTranslate.language('Tv shows') + '[/B]','action': 'tv_shows', 'mediatype': 'video', 'iconimage': self.icon('tvshows')})
+        self.addMenuItem({'name':'[B]' + AutoTranslate.language('Animes') + '[/B]','action': 'animes', 'mediatype': 'video', 'iconimage': self.icon('animes')})
         if get_country() == 'BR':
             self.addMenuItem({'name':'[B]' + AutoTranslate.language('donation') + '[/B]','action': 'donate', 'mediatype': 'video', 'iconimage': self.icon('donate')})
         self.end()
@@ -36,14 +37,35 @@ class thunder(myAddon):
         self.setcontent('videos')
         self.addMenuItem({'name':'[B]' + AutoTranslate.language('New movies') + '[/B]','action': 'premiere_movies', 'mediatype': 'video', 'iconimage': self.icon('premiere')})
         self.addMenuItem({'name':'[B]' + AutoTranslate.language('Trending') + '[/B]','action': 'trending_movies', 'mediatype': 'video', 'iconimage': self.icon('trending')})
+        self.addMenuItem({'name':'[B]' + AutoTranslate.language('Popular') + '[/B]','action': 'popular_movies', 'mediatype': 'video', 'iconimage': self.icon('popular')})
         self.addMenuItem({'name':'[B]' + AutoTranslate.language('Search') + '[/B]','action': 'search_movies', 'mediatype': 'video', 'iconimage': self.icon('search')})
         self.end()
     
     def tv_shows(self): 
         self.setcontent('videos') 
-        self.addMenuItem({'name':'[B]' + AutoTranslate.language('New Tv Shows') + '[/B]','action': 'premiere_tv_shows', 'mediatype': 'video', 'iconimage': self.icon('premiere')})
+        self.addMenuItem({'name':'[B]' + AutoTranslate.language('New tv shows') + '[/B]','action': 'premiere_tv_shows', 'mediatype': 'video', 'iconimage': self.icon('premiere')})
         self.addMenuItem({'name':'[B]' + AutoTranslate.language('Trending') + '[/B]','action': 'trending_tv_shows', 'mediatype': 'video', 'iconimage': self.icon('trending')})
-        self.addMenuItem({'name':'[B]' + AutoTranslate.language('New Episodes') + '[/B]','action': 'new_episodes', 'mediatype': 'video', 'iconimage': self.icon('new_episodes')})
+        self.addMenuItem({'name':'[B]' + AutoTranslate.language('Popular') + '[/B]','action': 'popular_tv_shows', 'mediatype': 'video', 'iconimage': self.icon('popular')})
+        self.addMenuItem({'name':'[B]' + AutoTranslate.language('Search') + '[/B]','action': 'search_tv_shows', 'mediatype': 'video', 'iconimage': self.icon('search')})
+        self.end()
+
+    def animes(self): 
+        self.setcontent('videos') 
+        self.addMenuItem({'name':'[B]' + AutoTranslate.language('Animes') + '[/B]','action': 'animes_tv_shows', 'mediatype': 'video', 'iconimage': self.icon('animes')})
+        self.addMenuItem({'name':'[B]' + AutoTranslate.language('Movies') + '[/B]','action': 'animes_movies', 'mediatype': 'video', 'iconimage': self.icon('movies')})
+        self.end()
+
+    def animes_movies(self): 
+        self.setcontent('videos') 
+        self.addMenuItem({'name':'[B]' + AutoTranslate.language('Popular') + '[/B]','action': 'popular_animes_movies', 'mediatype': 'video', 'iconimage': self.icon('popular')})
+        self.addMenuItem({'name':'[B]' + AutoTranslate.language('Search') + '[/B]','action': 'search_movies', 'mediatype': 'video', 'iconimage': self.icon('search')})
+        self.end()
+
+    def animes_tv_shows(self): 
+        self.setcontent('videos') 
+        self.addMenuItem({'name':'[B]' + AutoTranslate.language('New animes') + '[/B]','action': 'premiere_animes', 'mediatype': 'video', 'iconimage': self.icon('premiere')})
+        self.addMenuItem({'name':'[B]' + AutoTranslate.language('Popular recent') + '[/B]','action': 'popular_animes', 'mediatype': 'video', 'iconimage': self.icon('popular')})
+        self.addMenuItem({'name':'[B]' + AutoTranslate.language('Airing') + '[/B]','action': 'airing_animes', 'mediatype': 'video', 'iconimage': self.icon('airing')})
         self.addMenuItem({'name':'[B]' + AutoTranslate.language('Search') + '[/B]','action': 'search_tv_shows', 'mediatype': 'video', 'iconimage': self.icon('search')})
         self.end()
 
@@ -186,6 +208,60 @@ class thunder(myAddon):
         if total_items > 0:
             self.end()
 
+    def movies_popular(self,page):
+        total_pages,results = httpclient.movies_popular_api(page) 
+        if results:
+            total_items = len(results)
+            self.process_movie(results)
+        else:
+            total_items = 0
+        return total_pages,total_items
+
+    def pagination_movies_popular(self,page):
+        next_page = str(int(page) + 1)
+        self.setcontent('movies')
+        total_pages, total_items = self.animes_movies_popular(page)
+        
+        if int(next_page) <= int(total_pages) and int(total_items) > 0 and int(total_pages) > 1:
+            item_data = {
+                'name': '[B]' + AutoTranslate.language('Page') + str(next_page) + AutoTranslate.language('of') + str(total_pages) + '[/B]',
+                'action': 'popular_movies',
+                'iconimage': self.icon('next'),
+                'page': str(next_page),
+                'mediatype': 'movie'
+            }
+            self.addMenuItem(item_data)
+            
+        if total_items > 0:
+            self.end()
+
+    def animes_movies_popular(self,page):
+        total_pages,results = httpclient.animes_movies_popular_api(page) 
+        if results:
+            total_items = len(results)
+            self.process_movie(results)
+        else:
+            total_items = 0
+        return total_pages,total_items
+
+    def pagination_animes_movies_popular(self,page):
+        next_page = str(int(page) + 1)
+        self.setcontent('movies')
+        total_pages, total_items = self.animes_movies_popular(page)
+        
+        if int(next_page) <= int(total_pages) and int(total_items) > 0 and int(total_pages) > 1:
+            item_data = {
+                'name': '[B]' + AutoTranslate.language('Page') + str(next_page) + AutoTranslate.language('of') + str(total_pages) + '[/B]',
+                'action': 'popular_animes_movies',
+                'iconimage': self.icon('next'),
+                'page': str(next_page),
+                'mediatype': 'movie'
+            }
+            self.addMenuItem(item_data)
+            
+        if total_items > 0:
+            self.end()
+
     def search_movies(self,search,page):
         total_pages,results = httpclient.search_movies_api(search,page)
         if results:
@@ -307,6 +383,114 @@ class thunder(myAddon):
                 'iconimage': self.icon('next'),
                 'page': str(next_page),
                 'mediatype': 'tvshow'
+            }
+            self.addMenuItem(item_data)
+            
+        if total_items > 0:
+            self.end()
+
+    def tv_shows_popular(self,page):
+        total_pages,results = httpclient.tv_shows_popular_api(page)
+        if results:
+            total_items = len(results)
+            self.process_tvshow(results)
+        else:
+            total_items = 0
+        return total_pages,total_items
+
+    def pagination_tv_shows_popular(self,page):
+        next_page = str(int(page) + 1)
+        self.setcontent('tvshows')
+        total_pages, total_items = self.tv_shows_popular(page)
+        
+        if int(next_page) <= int(total_pages) and int(total_items) > 0 and int(total_pages) > 1:
+            item_data = {
+                'name': '[B]' + AutoTranslate.language('Page') + str(next_page) + AutoTranslate.language('of') + str(total_pages) + '[/B]',
+                'action': 'popular_tv_shows',
+                'iconimage': self.icon('next'),
+                'page': str(next_page),
+                'mediatype': 'tvshow'
+            }
+            self.addMenuItem(item_data)
+            
+        if total_items > 0:
+            self.end()
+
+    def animes_premiere(self,page):
+        total_pages,results = httpclient.animes_premiere_api(page)
+        if results:
+            total_items = len(results)
+            self.process_tvshow(results)
+        else:
+            total_items = 0
+        return total_pages,total_items
+
+    def pagination_animes_premiere(self,page):
+        next_page = str(int(page) + 1)
+        self.setcontent('tvshows')
+        total_pages, total_items = self.animes_premiere(page)
+        
+        if int(next_page) <= int(total_pages) and int(total_items) > 0 and int(total_pages) > 1:
+            item_data = {
+                'name': '[B]' + AutoTranslate.language('Page') + str(next_page) + AutoTranslate.language('of') + str(total_pages) + '[/B]',
+                'action': 'premiere_animes',
+                'iconimage': self.icon('next'),
+                'page': str(next_page),
+                'mediatype': 'animes'
+            }
+            self.addMenuItem(item_data)
+            
+        if total_items > 0:
+            self.end()
+
+    def animes_popular(self,page):
+        total_pages,results = httpclient.animes_popular_api(page)
+        if results:
+            total_items = len(results)
+            self.process_tvshow(results)
+        else:
+            total_items = 0
+        return total_pages,total_items
+
+    def pagination_animes_popular(self,page):
+        next_page = str(int(page) + 1)
+        self.setcontent('tvshows')
+        total_pages, total_items = self.animes_popular(page)
+        
+        if int(next_page) <= int(total_pages) and int(total_items) > 0 and int(total_pages) > 1:
+            item_data = {
+                'name': '[B]' + AutoTranslate.language('Page') + str(next_page) + AutoTranslate.language('of') + str(total_pages) + '[/B]',
+                'action': 'popular_animes',
+                'iconimage': self.icon('next'),
+                'page': str(next_page),
+                'mediatype': 'animes'
+            }
+            self.addMenuItem(item_data)
+            
+        if total_items > 0:
+            self.end()
+
+    def animes_airing(self,page):
+        total_pages,results = httpclient.animes_airing_api(page)
+        if results:
+            total_items = len(results)
+            self.process_tvshow(results)
+        else:
+            total_items = 0
+        return total_pages,total_items
+
+    def pagination_animes_airing(self,page):
+        next_page = str(int(page) + 1)
+        self.setcontent('tvshows')
+        total_pages, total_items = self.animes_airing(page)
+        
+        if int(next_page) <= int(total_pages) and int(total_items) > 0 and int(total_pages) > 1:
+            item_data = {
+                'name': '[B]' + AutoTranslate.language('Page') + str(next_page) + AutoTranslate.language('of') + str(total_pages) + '[/B]',
+                'action': 'airing_animes',
+                'iconimage': self.icon('next'),
+                'page': str(next_page),
+                'mediatype': 'animes'
             }
             self.addMenuItem(item_data)
             

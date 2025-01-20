@@ -35,10 +35,20 @@ def router(params):
         addon.movies()
     elif action == "tv_shows":
         addon.tv_shows()
+    elif action == "animes":
+        addon.animes()
+    elif action == "animes_movies":
+        addon.animes_movies()
+    elif action == "animes_tv_shows":
+        addon.animes_tv_shows()
+    elif action == "popular_animes_movies":
+        addon.pagination_animes_movies_popular(page)
     elif action == "premiere_movies":
         addon.pagination_movies_premiere(page)
     elif action == "trending_movies":
         addon.pagination_movies_trending(page)
+    elif action == "popular_movies":
+        addon.pagination_movies_popular(page)
     elif action == "search_movies":
         if not search_text:
             search_text = addon.input_text('Pesquisar')
@@ -48,6 +58,14 @@ def router(params):
         addon.pagination_tv_shows_premiere(page)
     elif action == "trending_tv_shows":
         addon.pagination_tv_shows_trending(page)
+    elif action == "popular_tv_shows":
+        addon.pagination_tv_shows_popular(page)
+    elif action == "premiere_animes":
+        addon.pagination_animes_premiere(page)
+    elif action == "popular_animes":
+        addon.pagination_animes_popular(page)
+    elif action == "airing_animes":
+        addon.pagination_animes_airing(page)
     elif action == "season_tvshow":
         addon.season_tvshow(video_title,originaltitle,year,video_id)
     elif action == "episode_tvshow":

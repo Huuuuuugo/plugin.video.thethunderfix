@@ -13,7 +13,7 @@ if not addon.exists(profile):
     except:
         pass
 cache_country = os.path.join(profile,'country.txt')
-USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:98.0) Gecko/20100101 Firefox/98.0'
+USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36'
 
 def get_country():
     if addon.exists(cache_country):
@@ -53,12 +53,17 @@ class AutoTranslate:
             return {
                 'lang-api': 'pt-BR',
                 'Movies': 'Filmes',
-                'Tv Shows': 'Séries',
-                'New movies': 'Novos Filmes',
-                'Trending': 'Em Alta',
+                'Tv shows': 'Séries',
+                'Animes': 'Animes',
+                'New animes': 'Novos animes',
+                'New movies': 'Novos filmes',
+                'Trending': 'Em alta',
+                'Popular': 'Populares',
+                'Popular recent': 'Populares recente',
+                'Airing': 'Em exibição',
                 'Search': 'Pesquisar',
-                'New Tv Shows': 'Novas Séries',
-                'New Episodes': 'Novos Episódios',
+                'New tv shows': 'Novas séries',
+                'New episodes': 'Novos episódios',
                 'Page': 'Pagina ',
                 'of': ' de ',
                 'Portuguese': 'DUBLADO',
@@ -80,12 +85,17 @@ class AutoTranslate:
             return {
                 'lang-api': 'pt-PT',
                 'Movies': 'Filmes',
-                'Tv Shows': 'Séries',
-                'New movies': 'Novos Filmes',
-                'Trending': 'Em Alta',
+                'Tv shows': 'Séries',
+                'Animes': 'Animes',
+                'New animes': 'Novos animes',
+                'New movies': 'Novos filmes',
+                'Trending': 'Em alta',
+                'Popular': 'Populares',
+                'Popular recent': 'Populares recente',
+                'Airing': 'Em exibição',
                 'Search': 'Pesquisar',
-                'New Tv Shows': 'Novas Séries',
-                'New Episodes': 'Novos Episódios',
+                'New tv shows': 'Novas séries',
+                'New episodes': 'Novos episódios',
                 'Page': 'Pagina ',
                 'of': ' de ',
                 'Portuguese': 'DUBLADO',
@@ -107,12 +117,17 @@ class AutoTranslate:
             return {
                 'lang-api': 'en-US',
                 'Movies': 'Movies',
-                'Tv Shows': 'Tv Shows',
+                'Tv shows': 'Tv shows',
+                'Animes': 'Animes',
+                'New animes': 'New animes',
                 'New movies': 'New movies',
                 'Trending': 'Trending',
+                'Popular': 'Popular',
+                'Popular recent': 'Popular recent',
+                'Airing': 'Airing',
                 'Search': 'Search',
-                'New Tv Shows': 'New Tv Shows',
-                'New Episodes': 'New Episodes',
+                'New tv shows': 'New tv shows',
+                'New episodes': 'New episodes',
                 'Page': 'Page ',
                 'of': ' of ',
                 'Portuguese': 'PORTUGUESE',
@@ -134,5 +149,3 @@ class AutoTranslate:
 
     
     
-
-
