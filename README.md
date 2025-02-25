@@ -24,7 +24,7 @@ Antes de instalar o addon Thunder, você precisa instalar as seguintes dependên
 
 Agora, baixe a versão funcional do addon Thunder para o Kodi:
 
-[**Baixar *plugin.video.thethunderfix***](https://github.com/Huuuuuugo/plugin.video.thethunderfix/releases/download/v1.0/plugin.video.thethunderfix-1.0.zip)
+[**Baixar *plugin.video.thethunderfix***](https://github.com/Huuuuuugo/plugin.video.thethunderfix/releases/download/v1.1.6/plugin.video.thethunderfix-1.1.6.zip)
 
 ## 3. **Passo a Passo de Instalação**
 
