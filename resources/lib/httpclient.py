@@ -121,8 +121,8 @@ def tv_shows_premiere_api(page):
         return 0,False
 
 def tv_shows_trending_api(page):
-    url1 = 'https://api.themoviedb.org/3/trending/tv/day?api_key={0}&page={1}&language='.format(API_KEY1,str(page)) + AutoTranslate.language('lang-api')
-    url2 = 'https://api.themoviedb.org/3/trending/tv/day?api_key={0}&page={1}&language='.format(API_KEY2,str(page)) + AutoTranslate.language('lang-api')
+    url1 = 'https://api.themoviedb.org/3/trending/tv/week?api_key={0}&page={1}&language='.format(API_KEY1,str(page)) + AutoTranslate.language('lang-api')
+    url2 = 'https://api.themoviedb.org/3/trending/tv/week?api_key={0}&page={1}&language='.format(API_KEY2,str(page)) + AutoTranslate.language('lang-api')
     try:
         src = request_api(url1,url2)
         total_pages = src.get('total_pages', 0)
