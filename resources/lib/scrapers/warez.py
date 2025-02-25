@@ -209,14 +209,14 @@ class source:
                     master_m3u8_url = requests.post(
                         master_request_url,
                         data={'hash': video_id, 'r': ''},
-                        headers={'X-Requested-With': 'XMLHttpRequest'},
+                        headers={'X-Requested-With': 'XMLHttpRequest', 'Referer': 'https://embed.warezcdn.link/'},
                         allow_redirects=True
                     )
                     master_m3u8_url = master_m3u8_url.text
                     master_m3u8_url = json.loads(master_m3u8_url)['videoSource']
 
                     # extract the url for the playlist containing all the parts from master.m3u8
-                    master_m3u8 = requests.get(master_m3u8_url).text
+                    master_m3u8 = requests.get(master_m3u8_url, headers={'Referer': 'https://embed.warezcdn.link/'}).text
                     for line in master_m3u8.split('\n'):
                         matches = re.compile(r"https?://[a-zA-Z0-9.-]+(?:\.[a-zA-Z]{2,})(:\d+)?(/[^\s]*)?").match(line)
                         if matches:
@@ -296,14 +296,14 @@ class source:
                     master_m3u8_url = requests.post(
                         master_request_url,
                         data={'hash': video_id, 'r': ''},
-                        headers={'X-Requested-With': 'XMLHttpRequest'},
+                        headers={'X-Requested-With': 'XMLHttpRequest', 'Referer': 'https://embed.warezcdn.link/'},
                         allow_redirects=True
                     )
                     master_m3u8_url = master_m3u8_url.text
                     master_m3u8_url = json.loads(master_m3u8_url)['videoSource']
 
                     # extract the url for the playlist containing all the parts from master.m3u8
-                    master_m3u8 = requests.get(master_m3u8_url).text
+                    master_m3u8 = requests.get(master_m3u8_url, headers={'Referer': 'https://embed.warezcdn.link/'}).text
                     for line in master_m3u8.split('\n'):
                         matches = re.compile(r"https?://[a-zA-Z0-9.-]+(?:\.[a-zA-Z]{2,})(:\d+)?(/[^\s]*)?").match(line)
                         if matches:
