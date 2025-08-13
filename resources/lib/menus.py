@@ -3,27 +3,134 @@ from kodi_helper import myAddon, xbmcgui
 from resources.lib.autotranslate import AutoTranslate, get_country
 from resources.lib import httpclient, sources
 import os
+import xbmcgui
+import xbmcplugin
 import sys
 import re
 
 class Donate(xbmcgui.WindowDialog):
     def __init__(self):
-        addonId = re.search('plugin\://(.+?)/',str(sys.argv[0])).group(1)
+        addonId = re.search('plugin\://(.+?)/', str(sys.argv[0])).group(1)
         addon = myAddon(addonId)
         translate = addon.translate
         homeDir = addon.homeDir
-        pix_image = translate(os.path.join(homeDir, 'resources', 'images' ,'qrcode-pix.png'))
+        pix_image = translate(os.path.join(homeDir, 'resources', 'images', 'qrcode-pix.png'))
         self.image = xbmcgui.ControlImage(440, 145, 400, 400, pix_image)
-        self.text = xbmcgui.ControlLabel(x=150,y=570,width=1100,height=25,label='[B]SE ESSE ADD-ON LHE AGRADA, FAÇA UMA DOAÇÃO VIA PIX ACIMA E MANTENHA ESSE SERVIÇO ATIVO[/B]',textColor='white')
-        self.text2 = xbmcgui.ControlLabel(x=380,y=600,width=1000,height=25,label='[B]PRESSIONE VOLTAR PARA SAIR (PRESS BACK TO RETURN)[/B]',textColor='white')
+        self.text = xbmcgui.ControlLabel(
+            x=150, y=570, width=1100, height=25,
+            label='[B]SE ESSE ADD-ON LHE AGRADA, FAÇA UMA DOAÇÃO VIA PIX ACIMA E MANTENHA ESSE SERVIÇO ATIVO[/B]',
+            textColor='white'
+        )
+        self.text2 = xbmcgui.ControlLabel(
+            x=380, y=600, width=1000, height=25,
+            label='[B]PRESSIONE VOLTAR PARA SAIR (PRESS BACK TO RETURN)[/B]',
+            textColor='white'
+        )
         self.addControl(self.image)
         self.addControl(self.text)
         self.addControl(self.text2)
 
+
 class thunder(myAddon):
-    def icon(self,image):
-        return self.translate(os.path.join(self.homeDir, 'resources', 'images' ,'{0}.png'.format(image)))
-    
+    def icon(self, image):
+        return self.translate(os.path.join(self.homeDir, 'resources', 'images', '{0}.png'.format(image)))
+
+    def get_preferred_language(self):
+        """Retorna o idioma preferido das configurações do addon."""
+        try:
+            lang_pref = self.getSetting("preferred_language")
+            if lang_pref == "0":
+                return "DUBLADO"
+            else:
+                return "LEGENDADO"
+        except:
+            return "DUBLADO"
+
+    def play(self, url, title, iconimage, fanart, description):
+        """Reproduz o vídeo usando o player do Kodi."""
+        try:
+            li = xbmcgui.ListItem(label=title)
+            li.setArt({'icon': iconimage, 'thumb': iconimage, 'fanart': fanart})
+            li.setInfo('video', {'title': title, 'plot': description})
+            li.setPath(url)
+            xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, li)
+        except Exception as e:
+            self.notify(f"Erro ao tentar reproduzir: {e}")
+
+    def is_auto_play_enabled(self):
+        """Verifica se o modo automático está ativado (robusto a diferentes APIs)."""
+        try:
+            import xbmcaddon
+            return xbmcaddon.Addon().getSettingBool("auto_play_enabled")
+        except Exception:
+            try:
+                val = self.getSetting("auto_play_enabled")
+                return str(val).lower() in ("true", "1", "yes")
+            except Exception:
+                return False
+
+    def try_resolve_with_fallback(self, menus_links, season, episode):
+        """
+        Tenta primeiro MIXDROP, depois WAREZCDN como fallback.
+        Retorna (stream, sub) ou (None, None) se falhar.
+        """
+        try:
+            # Prioridade: MIXDROP
+            mixdrop_link = next(((lbl, url) for lbl, url in menus_links if "MIXDROP" in lbl.upper()), None)
+            if mixdrop_link:
+                print(f"[DEBUG] try_resolve_with_fallback: tentando MIXDROP -> {mixdrop_link[1]}")
+                stream, sub = sources.select_resolver(mixdrop_link[1], season, episode)
+                if stream:
+                    return stream, sub
+                print("[DEBUG] MIXDROP falhou, tentando WAREZCDN...")
+
+            # Fallback: WAREZCDN
+            warez_link = next(((lbl, url) for lbl, url in menus_links if "WAREZCDN" in lbl.upper()), None)
+            if warez_link:
+                print(f"[DEBUG] try_resolve_with_fallback: tentando WAREZCDN -> {warez_link[1]}")
+                stream, sub = sources.select_resolver(warez_link[1], season, episode)
+                if stream:
+                    return stream, sub
+
+            print("[DEBUG] Nenhuma stream válida encontrada")
+            return None, None
+
+        except Exception as e:
+            print(f"[ERROR] try_resolve_with_fallback: exceção: {e}")
+            return None, None
+
+    def auto_play_preferred_language(self, imdb, year, season, episode, video_title, genre, iconimage, fanart, description):
+        """
+        Reproduz automaticamente priorizando MIXDROP e usando WAREZCDN como fallback.
+        """
+        try:
+            menus_links = sources.show_content(imdb, year, season, episode)
+            print(f"[DEBUG] auto_play_preferred_language: menus_links={menus_links}")
+
+            if not menus_links:
+                print("[DEBUG] auto_play_preferred_language: nenhuma fonte encontrada")
+                return False
+
+            # Resolver com fallback
+            stream, sub = self.try_resolve_with_fallback(menus_links, season, episode)
+
+            if not stream:
+                print("[DEBUG] auto_play_preferred_language: nenhuma stream válida encontrada")
+                return False
+
+            import xbmc
+            import xbmcgui
+            list_item = xbmcgui.ListItem(label=video_title)
+            list_item.setArt({'thumb': iconimage, 'icon': iconimage, 'fanart': fanart})
+            if sub:
+                list_item.setSubtitles([sub])
+            xbmc.Player().play(stream, list_item)
+            return True
+
+        except Exception as e:
+            print(f"[ERROR] auto_play_preferred_language: exceção geral: {e}")
+            return False
+
     def home(self):
         self.setcontent('videos')        
         self.addMenuItem({'name':'[B]' + AutoTranslate.language('Movies') + '[/B]','action': 'movies', 'mediatype': 'video', 'iconimage': self.icon('movies')})
@@ -31,6 +138,7 @@ class thunder(myAddon):
         self.addMenuItem({'name':'[B]' + AutoTranslate.language('Animes') + '[/B]','action': 'animes', 'mediatype': 'video', 'iconimage': self.icon('animes')})
         if get_country() == 'BR':
             self.addMenuItem({'name':'[B]' + AutoTranslate.language('donation') + '[/B]','action': 'donate', 'mediatype': 'video', 'iconimage': self.icon('donate')})
+        self.addMenuItem({'name':'[B]' + AutoTranslate.language('settings') + '[/B]', 'action': 'settings', 'mediatype': 'video', 'iconimage': self.icon('settings')})
         self.end()
 
     def movies(self):
@@ -220,7 +328,7 @@ class thunder(myAddon):
     def pagination_movies_popular(self,page):
         next_page = str(int(page) + 1)
         self.setcontent('movies')
-        total_pages, total_items = self.animes_movies_popular(page)
+        total_pages, total_items = self.movies_popular(page)
         
         if int(next_page) <= int(total_pages) and int(total_items) > 0 and int(total_pages) > 1:
             item_data = {
@@ -514,13 +622,6 @@ class thunder(myAddon):
             runtime = str(runtime)
         except:
             pass
-        #release = r.get('first_air_date')
-        #if release:
-        #    year = release.split('-')[0]
-        #    year = str(year)
-        #else:
-        #    release = 'false'
-        #    year = '0'
         genres = r.get('genres')
         id = str(id)
         if genres:
@@ -847,29 +948,62 @@ class thunder(myAddon):
             self.end()                                                                                                           
 
 
+
     def list_server_links(self,imdb,year,season,episode,name,video_title,genre,iconimage,fanart,description):
-        menus = sources.show_content(imdb,year,season,episode)
-        if menus:
+        menus_links = sources.show_content(imdb,year,season,episode)
+        if menus_links:
             self.setcontent('videos')
-            for name2, page_href in menus:
+            for name2, page_href in menus_links:
                 self.addMenuItem({'name': name2.encode('utf-8', 'ignore'), 'action': 'play_resolve', 'video_title': video_title, 'url': page_href,'iconimage': iconimage, 'fanart': fanart, 'playable': 'false', 'description': name, 'description2': description, 'imdbnumber': imdb, 'season': str(season), 'episode': str(episode), 'genre': genre, 'year': str(year)},False)
             self.end()
         else:
             self.notify('Nenhuma fonte disponivel')
 
-    def resolve_links(self,url,video_title,imdb,year,season,episode,genre,iconimage,fanart,description2,playable):
+    def resolve_links(self, url, video_title, imdb, year, season, episode, genre, iconimage, fanart, description2, playable):
         if season and episode:
             try:
                 video_title = video_title.decode('utf-8')
             except:
                 pass
-            name = '{0} - {1}x{2}'.format(video_title,season,episode)
+            name = '{0} - {1}x{2}'.format(video_title, season, episode)
         else:
             name = video_title
-        stream,sub = sources.select_resolver(url,season,episode)
-        if stream:
-            self.play_video({'name': name, 'url': stream, 'sub': sub,'iconimage': iconimage, 'fanart': fanart, 'description': description2, 'originaltitle': video_title, 'imdbnumber': imdb, 'season': str(season), 'episode': str(episode), 'genre': genre, 'year': str(year), 'playable': playable})
-        else:
-            self.notify('Stream indisponivel')
 
-            
+        menus_links = sources.show_content(imdb, year, season, episode)
+        if not menus_links:
+            self.notify('Nenhuma fonte disponível')
+            return
+
+        # Resolver com prioridade MIXDROP > WAREZCDN
+        stream, sub = self.try_resolve_with_fallback(menus_links, season, episode)
+
+        if not stream:
+            self.notify('Nenhuma fonte disponível')
+            return
+
+        import xbmc
+        import xbmcgui
+        list_item = xbmcgui.ListItem(label=name)
+        list_item.setArt({'thumb': iconimage, 'icon': iconimage, 'fanart': fanart})
+        if sub:
+            list_item.setSubtitles([sub])
+        xbmc.Player().play(stream, list_item)
+
+        if stream:
+            self.play_video({
+                'name': name,
+                'url': stream,
+                'sub': sub,
+                'iconimage': iconimage,
+                'fanart': fanart,
+                'description': description2,
+                'originaltitle': video_title,
+                'imdbnumber': imdb,
+                'season': str(season),
+                'episode': str(episode),
+                'genre': genre,
+                'year': str(year),
+                'playable': playable
+            })
+        else:
+            self.notify('Stream indisponível')
