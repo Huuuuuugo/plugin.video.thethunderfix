@@ -1,0 +1,6 @@
+<settings>
+    <category label="Reprodução automática">
+        <setting id="auto_play_enabled" type="bool" label="Ativar reprodução automática" default="false" />
+        <setting id="preferred_language" type="enum" label="Idioma preferido" values="DUBLADO|LEGENDADO" default="0" enable="eq(-1,true)" />
+    </category>
+</settings>
