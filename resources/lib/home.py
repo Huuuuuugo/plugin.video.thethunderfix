@@ -2,8 +2,9 @@
 from resources.lib.menus import thunder, Donate
 import sys
 import re
+import xbmcaddon
 
-addonId = re.search('plugin\://(.+?)/',str(sys.argv[0])).group(1)
+addonId = re.search('plugin\://(.+?)/', str(sys.argv[0])).group(1)
 addon = thunder(addonId)
 
 def router(params):
@@ -53,7 +54,7 @@ def router(params):
         if not search_text:
             search_text = addon.input_text('Pesquisar')
         if search_text:
-            addon.pagination_search_movies(search_text,page)
+            addon.pagination_search_movies(search_text, page)
     elif action == "premiere_tv_shows":
         addon.pagination_tv_shows_premiere(page)
     elif action == "trending_tv_shows":
@@ -67,20 +68,25 @@ def router(params):
     elif action == "airing_animes":
         addon.pagination_animes_airing(page)
     elif action == "season_tvshow":
-        addon.season_tvshow(video_title,originaltitle,year,video_id)
+        addon.season_tvshow(video_title, originaltitle, year, video_id)
     elif action == "episode_tvshow":
-        addon.episode_tvshow(video_title,originaltitle,genre,imdbnumber,year,duration,video_id,season,iconimage,fanart)
+        addon.episode_tvshow(video_title, originaltitle, genre, imdbnumber, year, duration, video_id, season, iconimage, fanart)
     elif action == "new_episodes":
         addon.new_episodes()
     elif action == "search_tv_shows":
         if not search_text:
             search_text = addon.input_text('Pesquisar')
         if search_text:
-            addon.pagination_search_tv_shows(search_text,page)                             
+            addon.pagination_search_tv_shows(search_text, page)                             
     elif action == "provider":
-        addon.list_server_links(imdbnumber,year,season,episode,name,video_title,genre,iconimage,fanart,description)
+        if addon.is_auto_play_enabled():
+            addon.auto_play_preferred_language(imdbnumber, year, season, episode, video_title, genre, iconimage, fanart, description)
+        else:
+            addon.list_server_links(imdbnumber, year, season, episode, name, video_title, genre, iconimage, fanart, description)
     elif action == "play_resolve":
-        addon.resolve_links(url,video_title,imdbnumber,year,season,episode,genre,iconimage,fanart,description2,playable)
+        addon.resolve_links(url, video_title, imdbnumber, year, season, episode, genre, iconimage, fanart, description2, playable)
+    elif action == "settings":
+        xbmcaddon.Addon().openSettings()
     elif action == "donate":
         i = Donate()
-        i.doModal()        
+        i.doModal()

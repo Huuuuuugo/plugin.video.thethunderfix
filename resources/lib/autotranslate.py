@@ -79,6 +79,7 @@ class AutoTranslate:
                 'ready': 'Pronto pra reproducao',
                 'wait': 'Por favor aguarde...',
                 'find_source': 'Procurando nas fontes',
+                'settings': 'Configurações',
                 'donation': 'Doação'
             }.get(key, 'Unknow')
         elif cls.country == 'PT':
@@ -111,6 +112,7 @@ class AutoTranslate:
                 'ready': 'Pronto pra reproducao',
                 'wait': 'Por favor aguarde...',
                 'find_source': 'Procurando nas fontes',
+                'settings': 'Configurações',
                 'donation': 'Doação'
             }.get(key, 'Unknow')        
         else:
@@ -143,6 +145,7 @@ class AutoTranslate:
                 'ready': 'Ready for reproduction',
                 'wait': 'Please wait...',
                 'find_source': 'Searching the sources',
+                'settings': 'Settings',
                 'donation': 'Donation'                
             }.get(key, 'Unknow')
           
