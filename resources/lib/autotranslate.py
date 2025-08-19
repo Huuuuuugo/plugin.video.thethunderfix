@@ -39,16 +39,8 @@ class AutoTranslate:
     @classmethod
     def language(cls,key):
         #BR - BRASIL
-        #AR - ARGENTINA
-        #GB - REINO UNIDO
-        #US - ESTADOS UNIDOS
-        #ES - ESPANHA
-        #MX - MEXICO
-        #UY - URUGUAI
-        #PY - PARAGUAI
-        #CL - CHILE
         #PT - PORTUGAL
-        #https://api.themoviedb.org/3/movie/now_playing?api_key=92c1507cc18d85290e7a0b96abb37316&append_to_response=external_ids&language=pt-PT&page=1
+        #OUTROS - INGLÊS
         if cls.country == 'BR':
             return {
                 'lang-api': 'pt-BR',
@@ -75,12 +67,20 @@ class AutoTranslate:
                 'select_player': 'SELECIONE UM REPRODUTOR:',
                 'load_torrent': 'carregando torrent...',
                 'select_torrent': 'SELECIONE UM TORRENT ABAIXO:',
-                'preparing': 'preparando reproducao...',
-                'ready': 'Pronto pra reproducao',
+                'preparing': 'preparando reprodução...',
+                'ready': 'Pronto para reprodução',
                 'wait': 'Por favor aguarde...',
                 'find_source': 'Procurando nas fontes',
                 'settings': 'Configurações',
-                'donation': 'Doação'
+                'donation': 'Doação',
+                'Please enter a valid search term': 'Por favor insira um termo de pesquisa válido',
+                'No sources available': 'Nenhuma fonte disponível',
+                'Stream unavailable': 'Stream indisponível',
+                'invalid_params': 'Parâmetros inválidos',
+                'IMDb not found': 'IMDb não encontrado',
+                'Failed to resolve link': 'Falha ao resolver link',
+                'If you like this add-on, support via PIX above': 'Se você gostou deste add-on, apoie via PIX acima',
+                'Press BACK to exit': 'Pressione VOLTAR para sair'
             }.get(key, 'Unknow')
         elif cls.country == 'PT':
             return {
@@ -108,12 +108,21 @@ class AutoTranslate:
                 'select_player': 'SELECIONE UM REPRODUTOR:',
                 'load_torrent': 'carregando torrent...',
                 'select_torrent': 'SELECIONE UM TORRENT ABAIXO:',
-                'preparing': 'preparando reproducao...',
-                'ready': 'Pronto pra reproducao',
+                'preparing': 'preparando reprodução...',
+                'ready': 'Pronto para reprodução',
                 'wait': 'Por favor aguarde...',
                 'find_source': 'Procurando nas fontes',
                 'settings': 'Configurações',
-                'donation': 'Doação'
+                'donation': 'Doação',
+                # ---- Novos textos ----
+                'Please enter a valid search term': 'Por favor insira um termo de pesquisa válido',
+                'No sources available': 'Nenhuma fonte disponível',
+                'Stream unavailable': 'Stream indisponível',
+                'invalid_params': 'Parâmetros inválidos',
+                'IMDb not found': 'IMDb não encontrado',
+                'Failed to resolve link': 'Falha ao resolver link',
+                'If you like this add-on, support via PIX above': 'Se você gostou deste add-on, apoie via PIX acima',
+                'Press BACK to exit': 'Pressione VOLTAR para sair'
             }.get(key, 'Unknow')        
         else:
             return {
@@ -146,9 +155,13 @@ class AutoTranslate:
                 'wait': 'Please wait...',
                 'find_source': 'Searching the sources',
                 'settings': 'Settings',
-                'donation': 'Donation'                
+                'donation': 'Donation',
+                'Please enter a valid search term': 'Please enter a valid search term',
+                'No sources available': 'No sources available',
+                'Stream unavailable': 'Stream unavailable',
+                'invalid_params': 'Invalid parameters',
+                'IMDb not found': 'IMDb not found',
+                'Failed to resolve link': 'Failed to resolve link',
+                'If you like this add-on, support via PIX above': 'If you like this add-on, support via PIX above',
+                'Press BACK to exit': 'Press BACK to exit'
             }.get(key, 'Unknow')
-          
-
-    
-    

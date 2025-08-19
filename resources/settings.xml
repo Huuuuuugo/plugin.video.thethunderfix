@@ -1,6 +1,12 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <settings>
     <category label="Reprodução automática">
         <setting id="auto_play_enabled" type="bool" label="Ativar reprodução automática" default="false" />
         <setting id="preferred_language" type="enum" label="Idioma preferido" values="DUBLADO|LEGENDADO" default="0" enable="eq(-1,true)" />
+   </category>
+    <category label="Cache">
+        <setting id="clear_cache" type="action" label="Limpar cache" action="RunScript(special://home/addons/plugin.video.thethunder/resources/lib/cache_manager.py,clear_cache)" />
+        <setting id="show_cache" type="action" label="Mostrar tamanho do cache" action="RunScript(special://home/addons/plugin.video.thethunder/resources/lib/cache_manager.py,show_cache)" />
+        <setting id="cache_ttl_days" type="number" label="Tempo de retenção do cache (dias)" default="7" />
     </category>
 </settings>
