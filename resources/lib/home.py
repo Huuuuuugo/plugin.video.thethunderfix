@@ -28,9 +28,10 @@ def router(params):
     video_title = params.get("video_title", "")
     search_text = params.get("search", "")
     video_id = params.get("video_id")
-    page = params.get("page") if params.get("page") else 1
+    page = params.get("page", "1")
+    mediatype = params.get("mediatype", "")
 
-    if action == None:        
+    if action is None:
         addon.home()
     elif action == "movies":
         addon.movies()
@@ -38,46 +39,34 @@ def router(params):
         addon.tv_shows()
     elif action == "animes":
         addon.animes()
-    elif action == "animes_movies":
-        addon.animes_movies()
-    elif action == "animes_tv_shows":
-        addon.animes_tv_shows()
-    elif action == "popular_animes_movies":
-        addon.pagination_animes_movies_popular(page)
+    elif action == "popular_movies":
+        addon.pagination_movies_popular(page)
     elif action == "premiere_movies":
         addon.pagination_movies_premiere(page)
     elif action == "trending_movies":
         addon.pagination_movies_trending(page)
-    elif action == "popular_movies":
-        addon.pagination_movies_popular(page)
     elif action == "search_movies":
-        if not search_text:
-            search_text = addon.input_text('Pesquisar')
-        if search_text:
-            addon.pagination_search_movies(search_text, page)
+        addon.search_movies(search_text, page)
+    elif action == "popular_tv_shows":
+        addon.pagination_tv_shows_popular(page)
     elif action == "premiere_tv_shows":
         addon.pagination_tv_shows_premiere(page)
     elif action == "trending_tv_shows":
         addon.pagination_tv_shows_trending(page)
-    elif action == "popular_tv_shows":
-        addon.pagination_tv_shows_popular(page)
-    elif action == "premiere_animes":
-        addon.pagination_animes_premiere(page)
+    elif action == "search_tv_shows":
+        addon.search_tv_shows(search_text, page)
     elif action == "popular_animes":
         addon.pagination_animes_popular(page)
+    elif action == "premiere_animes":
+        addon.pagination_animes_premiere(page)
     elif action == "airing_animes":
         addon.pagination_animes_airing(page)
+    elif action == "search_animes":
+        addon.search_animes(search_text, page)
+    elif action == "details":
+        addon.details(video_id, year, iconimage, fanart, description, mediatype)
     elif action == "season_tvshow":
-        addon.season_tvshow(video_title, originaltitle, year, video_id)
-    elif action == "episode_tvshow":
-        addon.episode_tvshow(video_title, originaltitle, genre, imdbnumber, year, duration, video_id, season, iconimage, fanart)
-    elif action == "new_episodes":
-        addon.new_episodes()
-    elif action == "search_tv_shows":
-        if not search_text:
-            search_text = addon.input_text('Pesquisar')
-        if search_text:
-            addon.pagination_search_tv_shows(search_text, page)                             
+        addon.season_tvshow(video_id, year, season)
     elif action == "provider":
         if addon.is_auto_play_enabled():
             addon.auto_play_preferred_language(imdbnumber, year, season, episode, video_title, genre, iconimage, fanart, description)
@@ -87,6 +76,24 @@ def router(params):
         addon.resolve_links(url, video_title, imdbnumber, year, season, episode, genre, iconimage, fanart, description2, playable)
     elif action == "settings":
         xbmcaddon.Addon().openSettings()
+    elif action == "clear_cache":
+        addon.clear_cache()
+    elif action == "show_cache_size":
+        addon.show_cache_size()
     elif action == "donate":
         i = Donate()
         i.doModal()
+
+if __name__ == '__main__':
+    try:
+        from urllib.parse import parse_qsl
+    except Exception:
+        from six.moves.urllib_parse import parse_qsl
+
+    params = {}
+    if len(sys.argv) > 2 and sys.argv[2]:
+        m = re.search(r'\?(.+)', sys.argv[2])
+        if m:
+            params = dict(parse_qsl(m.group(1)))
+
+    router(params)
