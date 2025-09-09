@@ -4,7 +4,7 @@ import sys
 import re
 import xbmcaddon
 
-addonId = re.search('plugin\://(.+?)/', str(sys.argv[0])).group(1)
+addonId = re.search('plugin://(.+?)/', str(sys.argv[0])).group(1)
 addon = thunder(addonId)
 
 def router(params):
@@ -14,7 +14,6 @@ def router(params):
     iconimage = params.get("iconimage", "")
     fanart = params.get("fanart", "")
     description = params.get("description", "")
-    description2 = params.get("description2", '')
     codec = params.get("codec", "")
     playable = params.get("playable", "")
     duration = params.get("duration", "")
@@ -73,7 +72,7 @@ def router(params):
         else:
             addon.list_server_links(imdbnumber, year, season, episode, name, video_title, genre, iconimage, fanart, description)
     elif action == "play_resolve":
-        addon.resolve_links(url, video_title, imdbnumber, year, season, episode, genre, iconimage, fanart, description2, playable)
+        addon.resolve_links(url, video_title, imdbnumber, year, season, episode, genre, iconimage, fanart, description, playable)
     elif action == "settings":
         xbmcaddon.Addon().openSettings()
     elif action == "clear_cache":
