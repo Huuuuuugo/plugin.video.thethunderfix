@@ -88,6 +88,16 @@ class thunder(myAddon):
         except Exception:
             return AutoTranslate.language("Portuguese")
 
+    def stop_if_playing(self):
+        """Interrompe qualquer reprodução ativa antes de iniciar outra."""
+        try:
+            player = xbmc.Player()
+            if player.isPlaying():
+                xbmc.log("DEBUG: Parando player antes de iniciar nova reprodução", xbmc.LOGINFO)
+                player.stop()
+        except Exception as e:
+            xbmc.log(f"DEBUG: Erro ao tentar parar player: {e}", xbmc.LOGERROR)
+
     def play(self, url, title, iconimage, fanart, description, subtitles=None):
         try:
             stream_type = self.get_stream_type(url)
@@ -97,6 +107,9 @@ class thunder(myAddon):
             if stream_type == 'mp4' and not self.is_ffmpegdirect_available():
                 self.notify_ffmpegdirect_missing()
                 return
+
+            self.stop_if_playing()
+
             li = xbmcgui.ListItem(label=title)
             li.setArt({'icon': iconimage, 'thumb': iconimage, 'fanart': fanart})
             info_tag = li.getVideoInfoTag()
@@ -213,6 +226,9 @@ class thunder(myAddon):
             if stream_type == 'mp4' and not self.is_ffmpegdirect_available():
                 self.notify_ffmpegdirect_missing()
                 return False
+
+            self.stop_if_playing()
+
             showtitle = video_title
             episode_title = video_title
             if season and episode:
@@ -561,6 +577,9 @@ class thunder(myAddon):
             if stream_type == 'mp4' and not self.is_ffmpegdirect_available():
                 self.notify_ffmpegdirect_missing()
                 return
+
+            self.stop_if_playing()
+
             showtitle = video_title
             episode_title = video_title
             if season and episode:
