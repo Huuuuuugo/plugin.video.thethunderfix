@@ -3,7 +3,8 @@ import os
 from kodi_helper import requests, myAddon
 import sys
 import re
-addonId = re.search('plugin\://(.+?)/',str(sys.argv[0])).group(1)
+
+addonId = re.search('plugin://(.+?)/', str(sys.argv[0])).group(1)
 addon = myAddon(addonId)
 profile = addon.profile
 
@@ -12,6 +13,7 @@ if not addon.exists(profile):
         addon.mkdir(profile)
     except:
         pass
+
 cache_country = os.path.join(profile,'country.txt')
 USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36'
 
@@ -23,7 +25,10 @@ def get_country():
     else:
         try:
             ip = requests.get('https://api.ipify.org/',headers={'User-Agent': USER_AGENT}).text
-            country = requests.get('https://ipinfo.io/widget/demo/{0}'.format(ip),headers={'User-Agent': USER_AGENT, 'Referer': 'https://ipinfo.io/'}).json().get('data', {}).get('country', '')
+            country = requests.get(
+                f'https://ipinfo.io/widget/demo/{ip}',
+                headers={'User-Agent': USER_AGENT, 'Referer': 'https://ipinfo.io/'}
+            ).json().get('data', {}).get('country', '')
             if country:
                 with open(cache_country, 'w') as f:
                     f.write(country)
@@ -33,14 +38,13 @@ def get_country():
             country = 'unknow'
     return country
 
+
 class AutoTranslate:
     country = get_country()
 
     @classmethod
     def language(cls,key):
-        #BR - BRASIL
-        #PT - PORTUGAL
-        #OUTROS - INGLÊS
+        # BRASIL
         if cls.country == 'BR':
             return {
                 'lang-api': 'pt-BR',
@@ -56,7 +60,7 @@ class AutoTranslate:
                 'Search': 'Pesquisar',
                 'New tv shows': 'Novas séries',
                 'New episodes': 'Novos episódios',
-                'Page': 'Pagina ',
+                'Page': 'Página ',
                 'of': ' de ',
                 'Portuguese': 'DUBLADO',
                 'Portuguese2': 'Dublado',
@@ -80,8 +84,18 @@ class AutoTranslate:
                 'IMDb not found': 'IMDb não encontrado',
                 'Failed to resolve link': 'Falha ao resolver link',
                 'If you like this add-on, support via PIX above': 'Se você gostou deste add-on, apoie via PIX acima',
-                'Press BACK to exit': 'Pressione VOLTAR para sair'
+                'Press BACK to exit': 'Pressione VOLTAR para sair',
+                'Error playing': 'Erro ao reproduzir',
+                'Error trying to play': 'Erro ao tentar reproduzir',
+                'Failed to load details': 'Falha ao carregar detalhes',
+                'InputStream Adaptive is required but not installed': 'InputStream Adaptive é necessário mas não está instalado',
+                'InputStream FFMpeg Direct is required but not installed': 'InputStream FFMpeg Direct é necessário mas não está instalado',
+                'Specials': 'Especiais',
+                'Season': 'Temporada',
+                'Episode': 'Episódio',
             }.get(key, 'Unknow')
+
+        # PORTUGAL
         elif cls.country == 'PT':
             return {
                 'lang-api': 'pt-PT',
@@ -97,7 +111,7 @@ class AutoTranslate:
                 'Search': 'Pesquisar',
                 'New tv shows': 'Novas séries',
                 'New episodes': 'Novos episódios',
-                'Page': 'Pagina ',
+                'Page': 'Página ',
                 'of': ' de ',
                 'Portuguese': 'DUBLADO',
                 'Portuguese2': 'Dublado',
@@ -114,7 +128,6 @@ class AutoTranslate:
                 'find_source': 'Procurando nas fontes',
                 'settings': 'Configurações',
                 'donation': 'Doação',
-                # ---- Novos textos ----
                 'Please enter a valid search term': 'Por favor insira um termo de pesquisa válido',
                 'No sources available': 'Nenhuma fonte disponível',
                 'Stream unavailable': 'Stream indisponível',
@@ -122,8 +135,18 @@ class AutoTranslate:
                 'IMDb not found': 'IMDb não encontrado',
                 'Failed to resolve link': 'Falha ao resolver link',
                 'If you like this add-on, support via PIX above': 'Se você gostou deste add-on, apoie via PIX acima',
-                'Press BACK to exit': 'Pressione VOLTAR para sair'
-            }.get(key, 'Unknow')        
+                'Press BACK to exit': 'Pressione VOLTAR para sair',
+                'Error playing': 'Erro ao reproduzir',
+                'Error trying to play': 'Erro ao tentar reproduzir',
+                'Failed to load details': 'Falha ao carregar detalhes',
+                'InputStream Adaptive is required but not installed': 'InputStream Adaptive é necessário mas não está instalado',
+                'InputStream FFMpeg Direct is required but not installed': 'InputStream FFMpeg Direct é necessário mas não está instalado',
+                'Specials': 'Especiais',
+                'Season': 'Temporada',
+                'Episode': 'Episódio',
+            }.get(key, 'Unknow')
+
+        # OUTROS PAÍSES → INGLÊS
         else:
             return {
                 'lang-api': 'en-US',
@@ -150,8 +173,8 @@ class AutoTranslate:
                 'select_player': 'SELECT A PLAYER:',
                 'load_torrent': 'loading torrent...',
                 'select_torrent': 'SELECT A TORRENT BELOW:',
-                'preparing': 'preparing reproduction...',
-                'ready': 'Ready for reproduction',
+                'preparing': 'preparing playback...',
+                'ready': 'Ready for playback',
                 'wait': 'Please wait...',
                 'find_source': 'Searching the sources',
                 'settings': 'Settings',
@@ -163,5 +186,13 @@ class AutoTranslate:
                 'IMDb not found': 'IMDb not found',
                 'Failed to resolve link': 'Failed to resolve link',
                 'If you like this add-on, support via PIX above': 'If you like this add-on, support via PIX above',
-                'Press BACK to exit': 'Press BACK to exit'
+                'Press BACK to exit': 'Press BACK to exit',
+                'Error playing': 'Error playing',
+                'Error trying to play': 'Error trying to play',
+                'Failed to load details': 'Failed to load details',
+                'InputStream Adaptive is required but not installed': 'InputStream Adaptive is required but not installed',
+                'InputStream FFMpeg Direct is required but not installed': 'InputStream FFMpeg Direct is required but not installed',
+                'Specials': 'Specials',
+                'Season': 'Season',
+                'Episode': 'Episode',
             }.get(key, 'Unknow')

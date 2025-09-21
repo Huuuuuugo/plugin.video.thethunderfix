@@ -13,7 +13,7 @@ try:
     import sys
     from kodi_helper import myAddon
     from resources.lib.unblock import unblock as requests
-    addonId = re.search('plugin\://(.+?)/',str(sys.argv[0])).group(1)
+    addonId = re.search('plugin://(.+?)/',str(sys.argv[0])).group(1)
     addon = myAddon(addonId)
     log = addon.log
 except:

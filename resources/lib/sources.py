@@ -8,7 +8,7 @@ except:
     pass
 try:
     from kodi_helper import myAddon
-    addonId = re.search('plugin\://(.+?)/',str(sys.argv[0])).group(1)
+    addonId = re.search('plugin://(.+?)/',str(sys.argv[0])).group(1)
     addon = myAddon(addonId)
     scrapers = addon.translate('special://home/addons/plugin.video.thethunder/resources/lib/scrapers/')
     progress = addon.progress_six

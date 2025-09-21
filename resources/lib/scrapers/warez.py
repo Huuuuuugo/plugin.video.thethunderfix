@@ -27,291 +27,247 @@ except ImportError:
 
 
 class source:
+
+    # ===============================
+    # Sessão e helpers
+    # ===============================
+
+    @classmethod
+    def _get_session(cls):
+        session = requests.Session()
+        session.headers.update({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0",
+            "Accept": "*/*",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Connection": "keep-alive"
+        })
+        return session
+
+    @classmethod
+    def _resolve_mixdrop(cls, session, url):
+        try:
+            r = session.get(url, timeout=10)
+            html = r.text
+
+            # 1. Regex compatível com o original
+            js_matches = re.findall(r"eval\((.+)\)", html, flags=re.DOTALL)
+
+            for packed_js in js_matches:
+                if "delivery" not in packed_js:
+                    continue
+                try:
+                    unpacked = jsunpack.unpack(packed_js)
+
+                    # 2. Procurar MDCore.wurl ou vurl
+                    video_match = re.search(r'MDCore\.(?:wurl|vurl)\s*=\s*"(.+?)"', unpacked)
+                    if video_match:
+                        video_url = "https:" + video_match.group(1)
+                        resolved = (
+                            f"{video_url}"
+                            f"|User-Agent={session.headers['User-Agent']}"
+                            f"&Referer={url}"
+                        )
+                        return resolved
+                except Exception:
+                    continue
+
+            # 3. Fallback direto no HTML (caso não esteja mais ofuscado)
+            direct = re.search(r'sources\s*:\s*\[{"file":"(https.+?)"}\]', html)
+            if direct:
+                return (
+                    f"{direct.group(1)}"
+                    f"|User-Agent={session.headers['User-Agent']}"
+                    f"&Referer={url}"
+                )
+
+        except Exception:
+            return None
+
+    @classmethod
+    def _resolve_warezcdn(cls, session, stream_url):
+        try:
+            stream_data = re.compile(r"(https://.+?/)(?:video|v)/(.+)").findall(stream_url)[0]
+            host_url, video_id = stream_data
+
+            master_request_url = f'{host_url}player/index.php?data={video_id}&do=getVideo'
+
+            # Headers fixos
+            headers = {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Referer': 'https://embed.warezcdn.link',
+                'Origin': 'https://basseqwevewcewcewecwcw.xyz',
+                'User-Agent': session.headers["User-Agent"]
+            }
+
+            r = session.post(
+                master_request_url,
+                data={'hash': video_id, 'r': ''},
+                headers=headers,
+                timeout=10
+            )
+            master_m3u8_url = json.loads(r.text)['videoSource']
+
+            playlist = session.get(
+                master_m3u8_url,
+                headers={
+                    'Referer': 'https://embed.warezcdn.link',
+                    'Origin': 'https://basseqwevewcewcewecwcw.xyz',
+                    'User-Agent': session.headers["User-Agent"]
+                },
+                timeout=10
+            ).text
+
+            # Monta cookies
+            cookies = "; ".join([f"{c.name}={c.value}" for c in session.cookies])
+
+            for line in playlist.splitlines():
+                if line.startswith("http"):
+                    resolved = (
+                        f"{line}"
+                        f"|User-Agent={session.headers['User-Agent']}"
+                        f"&Referer=https://embed.warezcdn.link"
+                        f"&Origin=https://basseqwevewcewcewecwcw.xyz"
+                        f"&Cookie={cookies}"
+                    )
+                    return resolved
+
+        except Exception:
+            return None
+
+    # ===============================
+    # Funções auxiliares internas
+    # ===============================
+
+    @classmethod
+    def _get_audio_ids_series(cls, session, imdb, season, episode, timeout=10):
+        referer_url = f"https://embed.warezcdn.link/serie/{imdb}"
+        data = session.get(referer_url, timeout=timeout).text
+
+        match = re.search(r"var cachedSeasons\s*=\s*['\"]([^'\"]+)['\"]", data)
+        if not match:
+            return [], referer_url
+
+        season_url = f"https://embed.warezcdn.link/{match.group(1)}"
+        seasons_info = session.get(season_url, headers={'Referer': referer_url}, timeout=timeout).json().get("seasons", {})
+
+        episode_info = next(
+            (ep for s in seasons_info.values() if s["name"] == str(season)
+             for ep in s["episodes"].values() if ep["name"] == str(episode)),
+            None
+        )
+        if not episode_info:
+            return [], referer_url
+
+        audio_ids = session.get(
+            f"https://embed.warezcdn.link/core/ajax.php?audios={episode_info['id']}",
+            headers={'Referer': referer_url},
+            timeout=timeout
+        ).json()
+        return json.loads(audio_ids), referer_url
+
+    @classmethod
+    def _get_audio_ids_movie(cls, session, imdb, timeout=10):
+        referer_url = f"https://embed.warezcdn.link/filme/{imdb}"
+        data = session.get(referer_url, timeout=timeout).text
+
+        match = re.search(r"let data = ['\"](\[.+\])['\"]", data)
+        if not match:
+            return [], referer_url
+
+        result = json.loads(match.group(1))
+        return result, referer_url
+
+    @classmethod
+    def _extract_links(cls, session, audio_ids, referer_url, timeout=10):
+        links = []
+        LANG_MAP = {1: english, 2: portuguese}
+        SERVERS = ['warezcdn', 'mixdrop']
+
+        for audio in audio_ids:
+            lg = LANG_MAP.get(int(audio['audio']), 'UNKNOWN')
+            for server in SERVERS:
+                if server not in audio['servers']:
+                    continue
+
+                embed_referer_url = f"https://embed.warezcdn.link/getEmbed.php?id={audio['id']}&sv={server}&lang={audio['audio']}"
+                play_url = f"https://embed.warezcdn.link/getPlay.php?id={audio['id']}&sv={server}"
+
+                session.get(referer_url, timeout=timeout)
+                session.get(embed_referer_url, headers={'Referer': referer_url}, timeout=timeout)
+                play_response = session.get(play_url, headers={'Referer': embed_referer_url}, timeout=timeout).text
+
+                match = re.search(r"window.location.href\s*=\s*['\"](.+?)['\"]", play_response)
+                if match:
+                    video_url = match.group(1)
+                    links.append((f"{server.upper()} - {lg}", video_url))
+        return links
+
+    # ===============================
+    # Funções principais
+    # ===============================
+
     @classmethod
     def warezcdn_servers(cls, imdb, season=False, episode=False):
-        links = []
-        if season and episode:
-            # get series page
-            referer_url = 'https://embed.warezcdn.link/serie/%s' % (str(imdb))
-            data = requests.get(referer_url).text
+        session = cls._get_session()
+        timeout = 10
 
-            # extract url to get seasons information
-            season_url = re.compile(r"var cachedSeasons\s*=\s*(?P<url>'(?:[^\']+)'|\"([^\"]+)\")", re.MULTILINE | re.DOTALL | re.IGNORECASE).findall(data)[0][1]
-            season_url = 'https://embed.warezcdn.link/' + season_url
+        try:
+            if season and episode:
+                audio_ids, referer_url = cls._get_audio_ids_series(session, imdb, season, episode, timeout)
+            else:
+                audio_ids, referer_url = cls._get_audio_ids_movie(session, imdb, timeout)
 
-            # get seasons information
-            seasons_info = requests.get(season_url, headers={'Referer': referer_url}).json()['seasons']
+            result = cls._extract_links(session, audio_ids, referer_url, timeout)
+            return result
 
-            # search for specified season and episode
-            episode_info = {}
-            for key in seasons_info.keys():
-                season_dict = seasons_info[key]
-                if season_dict['name'] == str(season):
-                    # search for specified episode
-                    for key in season_dict['episodes'].keys():
-                        episode_dict = season_dict['episodes'][key]
-                        if episode_dict['name'] == str(episode):
-                            episode_info = episode_dict
-                            break
-            
-            # request audio data
-            request_url = 'https://embed.warezcdn.link/core/ajax.php?audios=%s' % episode_dict['id']
+        except Exception:
+            return []
 
-            audio_ids = requests.get(
-                request_url,
-                headers={'Referer': referer_url}
-                ).json()
-            audio_ids = json.loads(audio_ids)
-                        
-            if audio_ids:
-                for audio in audio_ids:
-                    if int(audio['audio']) == 1:
-                        lg = english
-                    elif int(audio['audio']) == 2:
-                        lg = portuguese
-
-                    servers = ['warezcdn', 'mixdrop']
-                    for server in servers:
-                        if server in audio['servers']:
-                            embed_referer_url = 'https://embed.warezcdn.link/getEmbed.php?id=%s&sv=%s&lang=%s' % (audio['id'], server, audio['audio'])
-                            play_url = 'https://embed.warezcdn.link/getPlay.php?id=%s&sv=%s' % (audio['id'], server)
-
-                            # get referer urls to avoid bot detection
-                            requests.get(referer_url)
-                            requests.get(
-                                embed_referer_url,
-                                headers={'Referer': referer_url}
-                                )
-                            
-                            # get embed play html
-                            play_response = requests.get(
-                                play_url,
-                                headers={'Referer': embed_referer_url}
-                                ).text
-
-                            # extract video url from play_response
-                            video_url = re.compile(r"window.location.href = (?:\'|\")(.+)(?:\'|\")").findall(play_response)[0]
-                            
-                            # save name and url to the list of links
-                            name = server.upper() + ' - ' + lg
-                            links.append((name, video_url))
-
-        else:
-            # movie page url
-            referer_url = 'https://embed.warezcdn.link/filme/%s' % imdb
-
-            # request html content of the movie page
-            data = requests.get(referer_url).text
-
-            # extract audio data from the html content
-            audio_ids = re.compile(r"let data = (?:\'|\")(\[.+\])(?:\'|\")").findall(data)
-            audio_ids = json.loads(audio_ids[0])
-            
-            if audio_ids:
-                for audio in audio_ids:
-                    if int(audio['audio']) == 1:
-                        lg = english
-                    elif int(audio['audio']) == 2:
-                        lg = portuguese
-
-                    servers = ['warezcdn', 'mixdrop']
-                    for server in servers:
-                        if server in audio['servers']:
-                            embed_referer_url = 'https://embed.warezcdn.link/getEmbed.php?id=%s&sv=%s&lang=%s' % (audio['id'], server, audio['audio'])
-                            play_url = 'https://embed.warezcdn.link/getPlay.php?id=%s&sv=%s' % (audio['id'], server)
-
-                            # get referer urls to avoid bot detection
-                            requests.get(referer_url)
-                            requests.get(
-                                embed_referer_url,
-                                headers={'Referer': referer_url}
-                                )
-                            
-                            # get embed play html
-                            play_response = requests.get(
-                                play_url,
-                                headers={'Referer': embed_referer_url}
-                                ).text
-
-                            # extract video url from play_response
-                            video_url = re.compile(r"window.location.href = (?:\'|\")(.+)(?:\'|\")").findall(play_response)[0]
-                            
-                            # save name and url to the list of links
-                            name = server.upper() + ' - ' + lg
-                            links.append((name, video_url))
-
-        return links
-    
     @classmethod
     def search_movies(cls, imdb, year):
         try:
             return cls.warezcdn_servers(imdb, False, False)
-        except:
-            return []      
-    
+        except Exception:
+            return []
+
     @classmethod
     def resolve_movies(cls, url):
         streams = []
-        user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0"
-        if url:
-            # extract subtitles url
-            try:
-                sub = url.split('http')[2]
-                sub = 'http%s' % sub
-                try:
-                    sub = sub.split('&')[0]
-                except:
-                    pass
-                if not '.srt' in sub:
-                    sub = ''
-            except:
+        session = cls._get_session()
+        if not url:
+            return streams
+
+        # extrair legenda
+        sub = ''
+        try:
+            sub_part = url.split('http')[2]
+            sub = 'http' + sub_part.split('&')[0]
+            if '.srt' not in sub:
                 sub = ''
+        except:
+            pass
 
-            # extract video src
-            try:
-                stream = url.split('?')[0]
-            except:
-                try:
-                    stream = url.split('#')[0]
-                except:
-                    pass
-            
-            # extract mp4 link from mixdrop
-            if 'mixdrop' in url:
-                try:
-                    # requests html for the video player on mixdrop
-                    video_html_response = requests.get(
-                        url,
-                        headers={"User-Agent": user_agent}
-                    )
-                    video_html_response = video_html_response.text
-                    
-                    # deobfuscate js code
-                    js_matches = re.compile(r"eval\((.+)\)").findall(video_html_response)
-                    for packed_js in js_matches:
-                        if 'delivery' in packed_js:
-                            mdcore = jsunpack.unpack(packed_js)
-                    
-                    stream = 'https:' + re.compile(r"MDCore.wurl=\"(.+?)\"").findall(mdcore)[0] +'|user-agent=%s' %user_agent
+        # extrair link base
+        stream = url.split('?')[0].split('#')[0]
 
-                except:
-                    pass
+        # mixdrop
+        if 'mixdrop' in url:
+            resolved = cls._resolve_mixdrop(session, url)
+        else:
+            resolved = cls._resolve_warezcdn(session, stream)
 
-            # extract m3u8 links from warezcdn
-            else:
-                try:
-                    stream_data = re.compile(r"(https://.+/)video/(.+)").findall(stream)[0]
-                    host_url, video_id = stream_data
+        if resolved:
+            streams.append((resolved, sub, session.headers.get("User-Agent")))
 
-                    # make request for master.m3u8 url based on data from video_html_url
-                    master_request_url = '%splayer/index.php?data=%s&do=getVideo' % (host_url, video_id)
-
-                    master_m3u8_url = requests.post(
-                        master_request_url,
-                        data={'hash': video_id, 'r': ''},
-                        headers={'X-Requested-With': 'XMLHttpRequest', 'Referer': 'https://embed.warezcdn.link/'},
-                        allow_redirects=True
-                    )
-                    master_m3u8_url = master_m3u8_url.text
-                    master_m3u8_url = json.loads(master_m3u8_url)['videoSource']
-
-                    # extract the url for the playlist containing all the parts from master.m3u8
-                    master_m3u8 = requests.get(master_m3u8_url, headers={'Referer': 'https://embed.warezcdn.link/'}).text
-                    for line in master_m3u8.split('\n'):
-                        matches = re.compile(r"https?://[a-zA-Z0-9.-]+(?:\.[a-zA-Z]{2,})(:\d+)?(/[^\s]*)?").match(line)
-                        if matches:
-                            stream = matches[0]
-                            break
-                except:
-                    pass
-
-            # append results
-            streams.append((stream, sub, user_agent))
         return streams
-    
+
     @classmethod
     def search_tvshows(cls, imdb, year, season, episode):
         try:
             return cls.warezcdn_servers(imdb, season, episode)
-        except:
-            return []  
+        except Exception:
+            return []
 
     @classmethod
     def resolve_tvshows(cls, url):
-        streams = []
-        user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0"
-        if url:
-            # extract subtitles url
-            try:
-                sub = url.split('http')[2]
-                sub = 'http%s' % sub
-                try:
-                    sub = sub.split('&')[0]
-                except:
-                    pass
-                if not '.srt' in sub:
-                    sub = ''
-            except:
-                sub = ''
-
-            # extract video src
-            try:
-                stream = url.split('?')[0]
-            except:
-                try:
-                    stream = url.split('#')[0]
-                except:
-                    pass
-            
-            # extract mp4 link from mixdrop
-            if 'mixdrop' in url:
-                try:
-                    # requests html for the video player on mixdrop
-                    video_html_response = requests.get(
-                        url,
-                        headers={"User-Agent": user_agent}
-                    )
-                    video_html_response = video_html_response.text
-                    
-                    # deobfuscate js code
-                    js_matches = re.compile(r"eval\((.+)\)").findall(video_html_response)
-                    for packed_js in js_matches:
-                        if 'delivery' in packed_js:
-                            mdcore = jsunpack.unpack(packed_js)
-                    
-                    stream = 'https:' + re.compile(r"MDCore.wurl=\"(.+?)\"").findall(mdcore)[0] +'|user-agent=%s' %user_agent
-
-                except:
-                    pass
-
-            # extract m3u8 links from warezcdn
-            else:
-                try:
-                    stream_data = re.compile(r"(https://.+/)video/(.+)").findall(stream)[0]
-                    host_url, video_id = stream_data
-
-                    # make request for master.m3u8 url based on data from video_html_url
-                    master_request_url = '%splayer/index.php?data=%s&do=getVideo' % (host_url, video_id)
-
-                    master_m3u8_url = requests.post(
-                        master_request_url,
-                        data={'hash': video_id, 'r': ''},
-                        headers={'X-Requested-With': 'XMLHttpRequest', 'Referer': 'https://embed.warezcdn.link/'},
-                        allow_redirects=True
-                    )
-                    master_m3u8_url = master_m3u8_url.text
-                    master_m3u8_url = json.loads(master_m3u8_url)['videoSource']
-
-                    # extract the url for the playlist containing all the parts from master.m3u8
-                    master_m3u8 = requests.get(master_m3u8_url, headers={'Referer': 'https://embed.warezcdn.link/'}).text
-                    for line in master_m3u8.split('\n'):
-                        matches = re.compile(r"https?://[a-zA-Z0-9.-]+(?:\.[a-zA-Z]{2,})(:\d+)?(/[^\s]*)?").match(line)
-                        if matches:
-                            stream = matches[0]
-                            break
-                except:
-                    pass
-
-            # append results
-            streams.append((stream, sub, user_agent))
-        return streams
+        return cls.resolve_movies(url)
