@@ -216,58 +216,63 @@ class thunder(myAddon):
             if not menus_links:
                 self.notify_no_sources()
                 return False
-            preferred_lang = self.get_preferred_language()
-            for name, url in menus_links:
-                if preferred_lang.lower() in name.lower():
-                    try:
-                        stream, sub = sources.select_resolver(url, season, episode)
-                        if stream:
-                            stream_type = self.get_stream_type(stream)
-                            if stream_type in ['hls', 'dash'] and not self.is_inputstream_available():
-                                self.notify_inputstream_missing()
-                                return False
-                            if stream_type == 'mp4' and not self.is_ffmpegdirect_available():
-                                self.notify_ffmpegdirect_missing()
-                                return False
-                            self.stop_if_playing()
-                            showtitle = video_title
-                            episode_title = video_title
-                            if season and episode:
-                                if " - " in video_title:
-                                    showtitle, episode_title = video_title.split(" - ", 1)
-                                else:
-                                    showtitle = video_title
-                                    episode_title = f"{AutoTranslate.language('Episode')} {episode}"
-                            list_item = xbmcgui.ListItem(label=episode_title)
-                            list_item.setArt({'thumb': iconimage, 'icon': iconimage, 'fanart': fanart})
-                            info_tag = list_item.getVideoInfoTag()
-                            info_tag.setTitle(episode_title)
-                            info_tag.setTvShowTitle(showtitle)
-                            info_tag.setMediaType('episode')
-                            info_tag.setPlot(description)
-                            list_item.setContentLookup(False)
-                            if sub:
-                                list_item.setSubtitles([sub])
-                            if stream_type in ['hls', 'dash']:
-                                list_item.setProperty('inputstream', 'inputstream.adaptive')
-                                list_item.setMimeType('application/x-mpegURL' if stream_type == 'hls' else 'application/dash+xml')
-                                if '|' in stream:
-                                    stream, strhdr = stream.split('|', 1)
-                                    list_item.setProperty('inputstream.adaptive.stream_headers', strhdr)
-                                    list_item.setProperty('inputstream.adaptive.common_headers', strhdr)
-                                    list_item.setProperty('inputstream.adaptive.manifest_headers', strhdr)
-                                    list_item.setProperty('inputstream.adaptive.stream_params', strhdr)
-                            elif stream_type == 'mp4':
-                                list_item.setProperty('inputstream', 'inputstream.ffmpegdirect')
-                                list_item.setMimeType('video/mp4')
-                            list_item.setPath(stream)
-                            xbmc.Player().play(stream, list_item)
-                            return True
-                    except Exception:
-                        self.notify(f"{AutoTranslate.language('Error trying to auto-play')}: {e}")
-                        return False
-            self.notify_stream_unavailable()
-            return False
+
+            stream, sub = self.try_resolve_with_fallback(menus_links, season, episode)
+            if not stream:
+                self.notify_stream_unavailable()
+                return False
+
+            stream_type = self.get_stream_type(stream)
+            if stream_type in ['hls', 'dash'] and not self.is_inputstream_available():
+                self.notify_inputstream_missing()
+                return False
+            if stream_type == 'mp4' and not self.is_ffmpegdirect_available():
+                self.notify_ffmpegdirect_missing()
+                return False
+
+            self.stop_if_playing()
+            showtitle = video_title
+            episode_title = video_title
+            if season and episode:
+                if " - " in video_title:
+                    showtitle, episode_title = video_title.split(" - ", 1)
+                else:
+                    showtitle = video_title
+                    episode_title = f"{AutoTranslate.language('Episode')} {episode}"
+
+            list_item = xbmcgui.ListItem(label=episode_title if season and episode else video_title)
+            list_item.setArt({'thumb': iconimage, 'icon': iconimage, 'fanart': fanart})
+            info_tag = list_item.getVideoInfoTag()
+            if season and episode:
+                info_tag.setTitle(episode_title)
+                info_tag.setTvShowTitle(showtitle)
+                info_tag.setMediaType('episode')
+                info_tag.setPlot(description)
+            else:
+                info_tag.setTitle(video_title)
+                info_tag.setPlot(description)
+                info_tag.setMediaType('movie')
+
+            if sub:
+                list_item.setSubtitles([sub])
+
+            if stream_type in ['hls', 'dash']:
+                list_item.setProperty('inputstream', 'inputstream.adaptive')
+                list_item.setMimeType('application/x-mpegURL' if stream_type == 'hls' else 'application/dash+xml')
+                if '|' in stream:
+                    stream, strhdr = stream.split('|', 1)
+                    list_item.setProperty('inputstream.adaptive.stream_headers', strhdr)
+                    list_item.setProperty('inputstream.adaptive.common_headers', strhdr)
+                    list_item.setProperty('inputstream.adaptive.manifest_headers', strhdr)
+                    list_item.setProperty('inputstream.adaptive.stream_params', strhdr)
+            elif stream_type == 'mp4':
+                list_item.setProperty('inputstream', 'inputstream.ffmpegdirect')
+                list_item.setMimeType('video/mp4')
+
+            list_item.setPath(stream)
+            xbmc.Player().play(stream, list_item)
+            return True
+
         except Exception:
             self.notify(f"{AutoTranslate.language('Error trying to auto-play')}: {e}")
             return False
