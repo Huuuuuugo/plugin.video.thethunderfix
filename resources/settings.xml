@@ -9,4 +9,8 @@
         <setting id="show_cache" type="action" label="Mostrar tamanho do cache" action="RunScript(special://home/addons/plugin.video.thethunder/resources/lib/cache_manager.py,show_cache)" />
         <setting id="cache_ttl_days" type="number" label="Tempo de retenção do cache (dias)" default="7" />
     </category>
+    <category label="Fontes">
+        <setting id="source_warezcdn" type="bool" label="WarezCDN" default="true"/>
+        <setting id="source_overflix" type="bool" label="Overflix" default="false"/>
+    </category>
 </settings>
