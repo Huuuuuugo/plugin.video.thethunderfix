@@ -175,7 +175,7 @@ class thunder(myAddon):
                 return normalized
             norm_pref = normalize_links(preferred_links)
             norm_other = normalize_links(other_links)
-            providers = ["MIXDROP", "WAREZCDN"]
+            providers = ["MIXDROP", "DOODSTREAM", "STREAMTAPE", "FILEMOON", "WAREZCDN"]
             def attempt_list(norm_links):
                 tried_urls = set()
                 for provider in providers:
