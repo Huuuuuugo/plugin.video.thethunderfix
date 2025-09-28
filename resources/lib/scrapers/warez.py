@@ -25,7 +25,6 @@ except ImportError:
     sys.path.append(lib_path)
     from resolvers import resolveurl
 
-
 class source:
 
     # ===============================
@@ -42,97 +41,6 @@ class source:
             "Connection": "keep-alive"
         })
         return session
-
-    @classmethod
-    def _resolve_mixdrop(cls, session, url):
-        try:
-            r = session.get(url, timeout=10)
-            html = r.text
-
-            # 1. Regex compatível com o original
-            js_matches = re.findall(r"eval\((.+)\)", html, flags=re.DOTALL)
-
-            for packed_js in js_matches:
-                if "delivery" not in packed_js:
-                    continue
-                try:
-                    unpacked = jsunpack.unpack(packed_js)
-
-                    # 2. Procurar MDCore.wurl ou vurl
-                    video_match = re.search(r'MDCore\.(?:wurl|vurl)\s*=\s*"(.+?)"', unpacked)
-                    if video_match:
-                        video_url = "https:" + video_match.group(1)
-                        resolved = (
-                            f"{video_url}"
-                            f"|User-Agent={session.headers['User-Agent']}"
-                            f"&Referer={url}"
-                        )
-                        return resolved
-                except Exception:
-                    continue
-
-            # 3. Fallback direto no HTML (caso não esteja mais ofuscado)
-            direct = re.search(r'sources\s*:\s*\[{"file":"(https.+?)"}\]', html)
-            if direct:
-                return (
-                    f"{direct.group(1)}"
-                    f"|User-Agent={session.headers['User-Agent']}"
-                    f"&Referer={url}"
-                )
-
-        except Exception:
-            return None
-
-    @classmethod
-    def _resolve_warezcdn(cls, session, stream_url):
-        try:
-            stream_data = re.compile(r"(https://.+?/)(?:video|v)/(.+)").findall(stream_url)[0]
-            host_url, video_id = stream_data
-
-            master_request_url = f'{host_url}player/index.php?data={video_id}&do=getVideo'
-
-            # Headers fixos
-            headers = {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Referer': 'https://embed.warezcdn.link',
-                'Origin': 'https://basseqwevewcewcewecwcw.xyz',
-                'User-Agent': session.headers["User-Agent"]
-            }
-
-            r = session.post(
-                master_request_url,
-                data={'hash': video_id, 'r': ''},
-                headers=headers,
-                timeout=10
-            )
-            master_m3u8_url = json.loads(r.text)['videoSource']
-
-            playlist = session.get(
-                master_m3u8_url,
-                headers={
-                    'Referer': 'https://embed.warezcdn.link',
-                    'Origin': 'https://basseqwevewcewcewecwcw.xyz',
-                    'User-Agent': session.headers["User-Agent"]
-                },
-                timeout=10
-            ).text
-
-            # Monta cookies
-            cookies = "; ".join([f"{c.name}={c.value}" for c in session.cookies])
-
-            for line in playlist.splitlines():
-                if line.startswith("http"):
-                    resolved = (
-                        f"{line}"
-                        f"|User-Agent={session.headers['User-Agent']}"
-                        f"&Referer=https://embed.warezcdn.link"
-                        f"&Origin=https://basseqwevewcewcewecwcw.xyz"
-                        f"&Cookie={cookies}"
-                    )
-                    return resolved
-
-        except Exception:
-            return None
 
     # ===============================
     # Funções auxiliares internas
@@ -233,7 +141,6 @@ class source:
     @classmethod
     def resolve_movies(cls, url):
         streams = []
-        session = cls._get_session()
         if not url:
             return streams
 
@@ -249,15 +156,12 @@ class source:
 
         # extrair link base
         stream = url.split('?')[0].split('#')[0]
+        referer_url = 'https://embed.warezcdn.link/'
 
-        # mixdrop
-        if 'mixdrop' in url:
-            resolved = cls._resolve_mixdrop(session, url)
-        else:
-            resolved = cls._resolve_warezcdn(session, stream)
-
+        # Usa a função resolveurl de resolvers.py para resolver o link
+        resolved, sub_from_resolver = resolveurl(stream, referer=referer_url)
         if resolved:
-            streams.append((resolved, sub, session.headers.get("User-Agent")))
+            streams.append((resolved, sub if sub else sub_from_resolver, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0'))
 
         return streams
 

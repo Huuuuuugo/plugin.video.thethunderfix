@@ -89,14 +89,12 @@ class thunder(myAddon):
             return AutoTranslate.language("Portuguese")
 
     def stop_if_playing(self):
-        """Interrompe qualquer reprodução ativa antes de iniciar outra."""
         try:
             player = xbmc.Player()
             if player.isPlaying():
-                xbmc.log("DEBUG: Parando player antes de iniciar nova reprodução", xbmc.LOGINFO)
                 player.stop()
-        except Exception as e:
-            xbmc.log(f"DEBUG: Erro ao tentar parar player: {e}", xbmc.LOGERROR)
+        except Exception:
+            pass
 
     def play(self, url, title, iconimage, fanart, description, subtitles=None):
         try:
@@ -107,26 +105,31 @@ class thunder(myAddon):
             if stream_type == 'mp4' and not self.is_ffmpegdirect_available():
                 self.notify_ffmpegdirect_missing()
                 return
-
             self.stop_if_playing()
-
             li = xbmcgui.ListItem(label=title)
             li.setArt({'icon': iconimage, 'thumb': iconimage, 'fanart': fanart})
             info_tag = li.getVideoInfoTag()
             info_tag.setTitle(title)
             info_tag.setPlot(description)
             info_tag.setMediaType('video')
+            li.setContentLookup(False)
+            if subtitles:
+                li.setSubtitles([subtitles])
             if stream_type in ['hls', 'dash']:
                 li.setProperty('inputstream', 'inputstream.adaptive')
                 li.setMimeType('application/x-mpegURL' if stream_type == 'hls' else 'application/dash+xml')
+                if '|' in url:
+                    url, strhdr = url.split('|', 1)
+                    li.setProperty('inputstream.adaptive.stream_headers', strhdr)
+                    li.setProperty('inputstream.adaptive.common_headers', strhdr)
+                    li.setProperty('inputstream.adaptive.manifest_headers', strhdr)
+                    li.setProperty('inputstream.adaptive.stream_params', strhdr)
             elif stream_type == 'mp4':
                 li.setProperty('inputstream', 'inputstream.ffmpegdirect')
                 li.setMimeType('video/mp4')
             li.setPath(url)
-            if subtitles:
-                li.setSubtitles([subtitles])
             xbmc.Player().play(url, li)
-        except Exception as e:
+        except Exception:
             self.notify(f"{AutoTranslate.language('Error trying to play')}: {e}")
 
     def is_auto_play_enabled(self):
@@ -148,7 +151,6 @@ class thunder(myAddon):
             for entry in menus_links:
                 lbl = (entry[0] or "") if isinstance(entry, (list, tuple)) and len(entry) > 0 else ""
                 (preferred_links if preferred_lang and preferred_lang in lbl.upper() else other_links).append(entry)
-
             def normalize_links(links):
                 normalized = []
                 for entry in links:
@@ -171,11 +173,9 @@ class thunder(myAddon):
                     hostname = (parsed.hostname or "").upper() if parsed.hostname else ""
                     normalized.append({'label': lbl, 'label_u': lbl_u, 'url': url, 'decoded_url': decoded, 'hostname': hostname})
                 return normalized
-
             norm_pref = normalize_links(preferred_links)
             norm_other = normalize_links(other_links)
-            providers = ["MIXDROP", "WAREZCDN"]
-
+            providers = ["MIXDROP", "DOODSTREAM", "STREAMTAPE", "FILEMOON", "WAREZCDN"]
             def attempt_list(norm_links):
                 tried_urls = set()
                 for provider in providers:
@@ -203,7 +203,6 @@ class thunder(myAddon):
                     except Exception:
                         continue
                 return None, None
-
             stream, sub = attempt_list(norm_pref)
             if stream:
                 return stream, sub
@@ -215,10 +214,14 @@ class thunder(myAddon):
         try:
             menus_links = sources.show_content(imdb, year, season, episode)
             if not menus_links:
+                self.notify_no_sources()
                 return False
+
             stream, sub = self.try_resolve_with_fallback(menus_links, season, episode)
             if not stream:
+                self.notify_stream_unavailable()
                 return False
+
             stream_type = self.get_stream_type(stream)
             if stream_type in ['hls', 'dash'] and not self.is_inputstream_available():
                 self.notify_inputstream_missing()
@@ -228,7 +231,6 @@ class thunder(myAddon):
                 return False
 
             self.stop_if_playing()
-
             showtitle = video_title
             episode_title = video_title
             if season and episode:
@@ -237,9 +239,10 @@ class thunder(myAddon):
                 else:
                     showtitle = video_title
                     episode_title = f"{AutoTranslate.language('Episode')} {episode}"
-            li = xbmcgui.ListItem(label=episode_title if season and episode else video_title)
-            li.setArt({'thumb': iconimage, 'icon': iconimage, 'fanart': fanart})
-            info_tag = li.getVideoInfoTag()
+
+            list_item = xbmcgui.ListItem(label=episode_title if season and episode else video_title)
+            list_item.setArt({'thumb': iconimage, 'icon': iconimage, 'fanart': fanart})
+            info_tag = list_item.getVideoInfoTag()
             if season and episode:
                 info_tag.setTitle(episode_title)
                 info_tag.setTvShowTitle(showtitle)
@@ -249,18 +252,29 @@ class thunder(myAddon):
                 info_tag.setTitle(video_title)
                 info_tag.setPlot(description)
                 info_tag.setMediaType('movie')
-            if stream_type in ['hls', 'dash']:
-                li.setProperty('inputstream', 'inputstream.adaptive')
-                li.setMimeType('application/x-mpegURL' if stream_type == 'hls' else 'application/dash+xml')
-            elif stream_type == 'mp4':
-                li.setProperty('inputstream', 'inputstream.ffmpegdirect')
-                li.setMimeType('video/mp4')
-            li.setPath(stream)
+
             if sub:
-                li.setSubtitles([sub])
-            xbmc.Player().play(stream, li)
+                list_item.setSubtitles([sub])
+
+            if stream_type in ['hls', 'dash']:
+                list_item.setProperty('inputstream', 'inputstream.adaptive')
+                list_item.setMimeType('application/x-mpegURL' if stream_type == 'hls' else 'application/dash+xml')
+                if '|' in stream:
+                    stream, strhdr = stream.split('|', 1)
+                    list_item.setProperty('inputstream.adaptive.stream_headers', strhdr)
+                    list_item.setProperty('inputstream.adaptive.common_headers', strhdr)
+                    list_item.setProperty('inputstream.adaptive.manifest_headers', strhdr)
+                    list_item.setProperty('inputstream.adaptive.stream_params', strhdr)
+            elif stream_type == 'mp4':
+                list_item.setProperty('inputstream', 'inputstream.ffmpegdirect')
+                list_item.setMimeType('video/mp4')
+
+            list_item.setPath(stream)
+            xbmc.Player().play(stream, list_item)
             return True
+
         except Exception:
+            self.notify(f"{AutoTranslate.language('Error trying to auto-play')}: {e}")
             return False
 
     def home(self):
@@ -413,14 +427,10 @@ class thunder(myAddon):
                 show_src = httpclient.open_movie_api(video_id)
             else:
                 show_src = httpclient.open_season_api(video_id)
-
             if not show_src:
                 raise Exception("Nenhum dado retornado da API")
-
             imdb = show_src.get('external_ids', {}).get('imdb_id', '') or ''
             title = show_src.get('name') or show_src.get('title') or ''
-
-            # Autoplay de filmes restaurado
             if self.is_auto_play_enabled() and mediatype == 'movie' and imdb:
                 genre = show_src.get('genres', [{}])[0].get('name', '')
                 success = self.auto_play_preferred_language(
@@ -436,7 +446,6 @@ class thunder(myAddon):
                 )
                 if success:
                     return
-
             if mediatype == 'movie':
                 if imdb:
                     menus_links = sources.show_content(imdb, year, None, None)
@@ -577,9 +586,7 @@ class thunder(myAddon):
             if stream_type == 'mp4' and not self.is_ffmpegdirect_available():
                 self.notify_ffmpegdirect_missing()
                 return
-
             self.stop_if_playing()
-
             showtitle = video_title
             episode_title = video_title
             if season and episode:
@@ -610,15 +617,22 @@ class thunder(myAddon):
                 info_tag.setPlot(description)
                 info_tag.setMediaType('movie')
                 info_tag.setOriginalTitle(episode_title)
+            list_item.setContentLookup(False)
+            if sub:
+                list_item.setSubtitles([sub])
             if stream_type in ['hls', 'dash']:
                 list_item.setProperty('inputstream', 'inputstream.adaptive')
                 list_item.setMimeType('application/x-mpegURL' if stream_type == 'hls' else 'application/dash+xml')
+                if '|' in stream:
+                    stream, strhdr = stream.split('|', 1)
+                    list_item.setProperty('inputstream.adaptive.stream_headers', strhdr)
+                    list_item.setProperty('inputstream.adaptive.common_headers', strhdr)
+                    list_item.setProperty('inputstream.adaptive.manifest_headers', strhdr)
+                    list_item.setProperty('inputstream.adaptive.stream_params', strhdr)
             elif stream_type == 'mp4':
                 list_item.setProperty('inputstream', 'inputstream.ffmpegdirect')
                 list_item.setMimeType('video/mp4')
             list_item.setPath(stream)
-            if sub:
-                list_item.setSubtitles([sub])
             xbmc.Player().play(stream, list_item)
-        except Exception as e:
+        except Exception:
             self.notify(f"{AutoTranslate.language('Error trying to play')}: {e}")
