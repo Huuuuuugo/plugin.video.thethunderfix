@@ -2,6 +2,11 @@
 
 WEBSITE = 'OVERFLIX'
 
+try:
+    from resources.lib.ClientScraper import cfscraper, USER_AGENT
+except ImportError:
+    from ClientScraper import cfscraper, USER_AGENT
+
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import quote_plus, urlparse, urljoin
@@ -17,7 +22,7 @@ try:
 except ImportError:
     portuguese = 'DUBLADO'
     english = 'LEGENDADO'
-    select_option_name = 'SELECIONE UMA OPÃ‡ÃƒO ABAIXO:'
+    select_option_name = 'SELECIONE UMA OPÇÃO ABAIXO:'
 
 try:
     from kodi_helper import myAddon
@@ -39,17 +44,6 @@ except ImportError:
 
 class source:
     @classmethod
-    def _get_session(cls):
-        session = requests.Session()
-        session.headers.update({
-            "User-Agent": "Mozilla/5.0 (Android 10; Mobile; rv:121.0) Gecko/121.0 Firefox/121.0",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-            "Accept-Language": "pt-BR,pt;q=0.8,en-US;q=0.5,en;q=0.3",
-            "Connection": "keep-alive"
-        })
-        return session
-
-    @classmethod
     def normalize_title(cls, title):
         title = title.lower().strip()
         title = re.sub(r'[^\w\s-]', '', title)
@@ -58,11 +52,10 @@ class source:
 
     @classmethod
     def find_brazil_title(cls, imdb):
-        session = cls._get_session()
         url = f'https://www.imdb.com/title/{imdb}/releaseinfo'
         try:
-            r = session.get(url, timeout=10)
-            if r.status_code != 200:
+            r = cfscraper.get(url)
+            if not r or r.status_code != 200:
                 return ''
             soup = BeautifulSoup(r.text, 'html.parser')
             akas_table = soup.find('table', class_='akas-table')
@@ -77,11 +70,10 @@ class source:
 
     @classmethod
     def find_title(cls, imdb):
-        session = cls._get_session()
         url = f'https://www.imdb.com/title/{imdb}'
         try:
-            r = session.get(url, timeout=10)
-            if r.status_code != 200:
+            r = cfscraper.get(url)
+            if not r or r.status_code != 200:
                 return ''
             soup = BeautifulSoup(r.text, 'html.parser')
             title = soup.find('h1', {'data-testid': 'hero__pageTitle'})
@@ -106,30 +98,36 @@ class source:
             if not match:
                 continue
             player_id, server = match.groups()
-            getembed = f"https://etv-embed.icu/e/getembed.php?sv={server}&id={player_id}&site=overflix&token={token}"
+            getembed = f"https://etv-embed.help/e/getembed.php?sv={server}&id={player_id}&site=overflix&token={token}"
             server_name = server.upper()
             embeds.append((server_name, getembed, {'id': player_id, 'sv': server, 'token': token}))
         return embeds
 
     @classmethod
-    def _get_play_url(cls, session, referer_url, getembed_url, meta):
+    def _get_play_url(cls, referer_url, getembed_url, meta):
+        headers = {
+            'User-Agent': USER_AGENT,
+            'Referer': cls.__site_url__[-1]
+        }
         try:
-            session.get(referer_url, timeout=10, headers={'Referer': cls.__site_url__[-1]})
+            requests.get(referer_url, headers=headers)
         except Exception:
             pass
         headers_embed = {
-            'Referer': cls.__site_url__[-1],
-            'User-Agent': session.headers.get('User-Agent', '')
+            'User-Agent': USER_AGENT,
+            'Referer': cls.__site_url__[-1]
         }
         try:
-            r1 = session.get(getembed_url, timeout=10, headers=headers_embed)
+            r1 = requests.get(getembed_url, headers=headers_embed)
+            if r1.status_code != 200:
+                return None
         except Exception:
             return None
         id_ = meta.get('id')
         sv = meta.get('sv')
-        play_url = f"https://etv-embed.icu/e/getplay.php?id={id_}&sv={sv}"
+        play_url = f"https://etv-embed.help/e/getplay.php?id={id_}&sv={sv}"
         try:
-            r2 = session.get(play_url, timeout=10, headers={'Referer': getembed_url}, allow_redirects=True)
+            r2 = requests.get(play_url, headers={'User-Agent': USER_AGENT, 'Referer': getembed_url}, allow_redirects=True)
             if r2.status_code != 200:
                 return None
             if r2.history:
@@ -160,13 +158,14 @@ class source:
                     mixdrop = re.search(r'(?:window\.location\.href|var\s+videoUrl)\s*=\s*[\'"](https?://mixdrop\.[a-z0-9.-]+/[^\s"\']+)[\'"]', html, re.I)
                     if mixdrop:
                         final_video = mixdrop.group(1)
+            if not final_video:
+                return None
             return final_video
         except Exception:
             return None
 
     @classmethod
     def search_movies(cls, imdb, year):
-        session = cls._get_session()
         links = []
         title = cls.find_brazil_title(imdb) or cls.find_title(imdb)
         if not title:
@@ -174,8 +173,8 @@ class source:
         try:
             query = quote_plus(cls.normalize_title(title))
             search_url = cls.__site_url__[-1].rstrip('/') + '/pesquisar/?p=' + query
-            r = session.get(search_url, timeout=10)
-            if r.status_code != 200 or "captcha" in r.text.lower():
+            r = cfscraper.get(search_url)
+            if not r or r.status_code != 200 or "captcha" in r.text.lower():
                 return links
             soup = BeautifulSoup(r.text, 'html.parser')
             results = soup.find_all('a', href=re.compile(r'/assistir-.*-\d{4}-\d+'))
@@ -213,8 +212,8 @@ class source:
                         pass
             if not movie_urls:
                 movie_urls['dublado'] = movie_url
-            r = session.get(f"{movie_url}?area=online", headers={'Referer': cls.__site_url__[-1]}, timeout=10)
-            if r.status_code != 200 or "captcha" in r.text.lower():
+            r = cfscraper.get(f"{movie_url}?area=online", headers={'Referer': cls.__site_url__[-1]})
+            if not r or r.status_code != 200 or "captcha" in r.text.lower():
                 return links
             embeds_final = []
             soup0 = BeautifulSoup(r.text, 'html.parser')
@@ -229,14 +228,14 @@ class source:
                         lang_url = lang_url + sep + 'area=online'
                 else:
                     lang_url = f"{movie_url}?area=online&audio={lang}"
-                rlang = session.get(lang_url, headers={'Referer': cls.__site_url__[-1]}, timeout=10)
-                if rlang.status_code != 200 or "captcha" in rlang.text.lower():
+                rlang = cfscraper.get(lang_url, headers={'Referer': cls.__site_url__[-1]})
+                if not rlang or rlang.status_code != 200 or "captcha" in rlang.text.lower():
                     continue
                 embeds = cls._extract_embeds_from_page(rlang.text)
                 if not embeds:
                     continue
                 for server_name, getembed_url, meta in embeds:
-                    final_video = cls._get_play_url(session, referer_url=lang_url, getembed_url=getembed_url, meta=meta)
+                    final_video = cls._get_play_url(referer_url=lang_url, getembed_url=getembed_url, meta=meta)
                     if final_video:
                         name = f"{server_name} - {lang_label}"
                         embeds_final.append((name, final_video))
@@ -246,7 +245,6 @@ class source:
 
     @classmethod
     def search_tvshows(cls, imdb, year, season, episode):
-        session = cls._get_session()
         links = []
         title = cls.find_brazil_title(imdb) or cls.find_title(imdb)
         if not title:
@@ -254,8 +252,8 @@ class source:
         try:
             query = quote_plus(cls.normalize_title(title))
             search_url = cls.__site_url__[-1].rstrip('/') + '/pesquisar/?p=' + query
-            r = session.get(search_url, timeout=10)
-            if r.status_code != 200 or "captcha" in r.text.lower():
+            r = cfscraper.get(search_url)
+            if not r or r.status_code != 200 or "captcha" in r.text.lower():
                 return links
             soup = BeautifulSoup(r.text, 'html.parser')
             results = soup.find_all('a', href=re.compile(r'/assistir-.*-\d{4}-\d+'))
@@ -286,8 +284,8 @@ class source:
                 series_url = series_urls.get(lang)
                 if not series_url:
                     continue
-                r = session.get(series_url, headers={'Referer': cls.__site_url__[-1]}, timeout=10)
-                if r.status_code != 200 or "captcha" in r.text.lower():
+                r = cfscraper.get(series_url, headers={'Referer': cls.__site_url__[-1]})
+                if not r or r.status_code != 200 or "captcha" in r.text.lower():
                     continue
                 soup = BeautifulSoup(r.text, 'html.parser')
                 episode_links = soup.find_all('a', href=re.compile(r'/assistir-.*-\d+x\d+-[a-z]+(?:-[a-z]+\d+)?-\d+'))
@@ -308,14 +306,14 @@ class source:
                     continue
                 lang_label = portuguese if lang == 'dublado' else english
                 lang_url = episode_url
-                rlang = session.get(lang_url, headers={'Referer': cls.__site_url__[-1]}, timeout=10)
-                if rlang.status_code != 200 or "captcha" in rlang.text.lower():
+                rlang = cfscraper.get(lang_url, headers={'Referer': cls.__site_url__[-1]})
+                if not rlang or rlang.status_code != 200 or "captcha" in rlang.text.lower():
                     continue
                 embeds = cls._extract_embeds_from_page(rlang.text)
                 if not embeds:
                     continue
                 for server_name, getembed_url, meta in embeds:
-                    final_video = cls._get_play_url(session, referer_url=lang_url, getembed_url=getembed_url, meta=meta)
+                    final_video = cls._get_play_url(referer_url=lang_url, getembed_url=getembed_url, meta=meta)
                     if final_video:
                         name = f"{server_name} - {lang_label}"
                         embeds_final.append((name, final_video))
@@ -342,8 +340,7 @@ class source:
         try:
             resolved, sub_from_resolver = resolveurl(stream, referer=None)
             if resolved:
-                streams.append((resolved, sub if sub else sub_from_resolver,
-                                'Mozilla/5.0 (Android 10; Mobile; rv:121.0) Gecko/121.0 Firefox/121.0'))
+                streams.append((resolved, sub if sub else sub_from_resolver, USER_AGENT))
         except Exception:
             pass
         return streams
