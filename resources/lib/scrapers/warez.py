@@ -48,14 +48,14 @@ class source:
 
     @classmethod
     def _get_audio_ids_series(cls, session, imdb, season, episode, timeout=10):
-        referer_url = f"https://embed.warezcdn.link/serie/{imdb}"
+        referer_url = f"https://embed.warezcdn.cc/serie/{imdb}"
         data = session.get(referer_url, timeout=timeout).text
 
         match = re.search(r"var cachedSeasons\s*=\s*['\"]([^'\"]+)['\"]", data)
         if not match:
             return [], referer_url
 
-        season_url = f"https://embed.warezcdn.link/{match.group(1)}"
+        season_url = f"https://embed.warezcdn.cc/{match.group(1)}"
         seasons_info = session.get(season_url, headers={'Referer': referer_url}, timeout=timeout).json().get("seasons", {})
 
         episode_info = next(
@@ -67,7 +67,7 @@ class source:
             return [], referer_url
 
         audio_ids = session.get(
-            f"https://embed.warezcdn.link/core/ajax.php?audios={episode_info['id']}",
+            f"https://embed.warezcdn.cc/core/ajax.php?audios={episode_info['id']}",
             headers={'Referer': referer_url},
             timeout=timeout
         ).json()
@@ -75,7 +75,7 @@ class source:
 
     @classmethod
     def _get_audio_ids_movie(cls, session, imdb, timeout=10):
-        referer_url = f"https://embed.warezcdn.link/filme/{imdb}"
+        referer_url = f"https://embed.warezcdn.cc/filme/{imdb}"
         data = session.get(referer_url, timeout=timeout).text
 
         match = re.search(r"let data = ['\"](\[.+\])['\"]", data)
@@ -97,8 +97,8 @@ class source:
                 if server not in audio['servers']:
                     continue
 
-                embed_referer_url = f"https://embed.warezcdn.link/getEmbed.php?id={audio['id']}&sv={server}&lang={audio['audio']}"
-                play_url = f"https://embed.warezcdn.link/getPlay.php?id={audio['id']}&sv={server}"
+                embed_referer_url = f"https://embed.warezcdn.cc/getEmbed.php?id={audio['id']}&sv={server}&lang={audio['audio']}"
+                play_url = f"https://embed.warezcdn.cc/getPlay.php?id={audio['id']}&sv={server}"
 
                 session.get(referer_url, timeout=timeout)
                 session.get(embed_referer_url, headers={'Referer': referer_url}, timeout=timeout)
@@ -156,7 +156,7 @@ class source:
 
         # extrair link base
         stream = url.split('?')[0].split('#')[0]
-        referer_url = 'https://embed.warezcdn.link/'
+        referer_url = 'https://embed.warezcdn.cc/'
 
         # Usa a função resolveurl de resolvers.py para resolver o link
         resolved, sub_from_resolver = resolveurl(stream, referer=referer_url)
