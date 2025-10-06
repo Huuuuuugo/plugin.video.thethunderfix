@@ -358,7 +358,7 @@ class Resolver:
             host = parsed.netloc
             media_id = re.search(r'/video/([A-Za-z0-9]+)', url).group(1)
             user_agent = cls.CHROME_USER_AGENT
-            if host.endswith(".xyz") and media_id.startswith("m3/"):
+            if host.endswith(".cyou") and media_id.startswith("m3/"):
                 headers = {'User-Agent': user_agent}
                 stream_url = f"https://{host}/{media_id}" + cls.append_headers(headers)
                 return stream_url
@@ -368,7 +368,7 @@ class Resolver:
                 'User-Agent': user_agent,
                 'Origin': origin_url.rstrip('/'),
                 'X-Requested-With': 'XMLHttpRequest',
-                'Referer': 'https://embed.warezcdn.link/'
+                'Referer': 'https://embed.warezcdn.cc/'
             }
             r = requests.post(master_request_url, data={'hash': media_id, 'r': ''}, headers=headers)
             data_json = r.json()
@@ -377,7 +377,7 @@ class Resolver:
                 stream = data_json['securedLink'] + cls.append_headers(headers)
             elif 'videoSource' in data_json and data_json['videoSource']:
                 master_m3u8_url = data_json['videoSource']
-                r = requests.get(master_m3u8_url, headers={'Referer': 'https://embed.warezcdn.link/', 'User-Agent': user_agent})
+                r = requests.get(master_m3u8_url, headers={'Referer': 'https://embed.warezcdn.cc/', 'User-Agent': user_agent})
                 playlist = r.text
                 base_url = master_m3u8_url.rsplit("/", 1)[0] + "/"
                 for line in playlist.split('\n'):
@@ -459,7 +459,7 @@ class Resolver:
             'all3do.com', 'do7go.com', 'doodcdn.io', 'doply.net', 'vide0.net', 'vvide0.com',
             'd-s.io', 'dsvplay.com'
         ]
-        warez_domains = ["warezcdn.link", "basseqwevewcewcewecwcw.xyz"]
+        warez_domains = ["warezcdn.cc", "loldewfwvwvwewefdw.cyou"]
         if domain in streamtape_domains:
             stream = cls.resolve_streamtape(url, referer)
         elif domain in mixdrop_domains:

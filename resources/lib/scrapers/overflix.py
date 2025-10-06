@@ -13,6 +13,7 @@ from urllib.parse import quote_plus, urlparse, urljoin
 import os
 import sys
 import re
+import difflib
 
 try:
     from resources.lib.autotranslate import AutoTranslate
@@ -44,44 +45,37 @@ except ImportError:
 
 class source:
     @classmethod
-    def normalize_title(cls, title):
-        title = title.lower().strip()
-        title = re.sub(r'[^\w\s-]', '', title)
-        title = re.sub(r'\s+', '-', title)
-        return title
-
-    @classmethod
-    def find_brazil_title(cls, imdb):
-        url = f'https://www.imdb.com/title/{imdb}/releaseinfo'
-        try:
-            r = cfscraper.get(url)
-            if not r or r.status_code != 200:
-                return ''
-            soup = BeautifulSoup(r.text, 'html.parser')
-            akas_table = soup.find('table', class_='akas-table')
-            if akas_table:
-                for row in akas_table.find_all('tr'):
-                    cells = row.find_all('td')
-                    if len(cells) >= 2 and 'Brazil' in cells[0].text:
-                        return cells[1].text.strip()
-            return ''
-        except Exception:
-            return ''
-
-    @classmethod
     def find_title(cls, imdb):
-        url = f'https://www.imdb.com/title/{imdb}'
+        url = f'https://www.imdb.com/pt/title/{imdb}'
         try:
             r = cfscraper.get(url)
             if not r or r.status_code != 200:
-                return ''
+                return '', ''
             soup = BeautifulSoup(r.text, 'html.parser')
             title = soup.find('h1', {'data-testid': 'hero__pageTitle'})
-            if title:
-                return title.find('span').text
-            return ''
+            title_text = title.find('span').text if title else ''
+            year = ''
+            year_element = soup.find('a', {'class': re.compile(r'ipc-link.*titleYear')})
+            if year_element:
+                year_match = re.search(r'\d{4}', year_element.text)
+                if year_match:
+                    year = year_match.group(0)
+            if not year:
+                release_element = soup.find('a', {'data-testid': re.compile(r'release-date-item|title-details-releasedate')})
+                if release_element:
+                    year_match = re.search(r'\d{4}', release_element.text)
+                    if year_match:
+                        year = year_match.group(0)
+            if not year:
+                meta_elements = soup.find_all('li', {'data-testid': re.compile(r'title-details-releaseyear|title-techspec_release')})
+                for elem in meta_elements:
+                    year_match = re.search(r'\d{4}', elem.text)
+                    if year_match:
+                        year = year_match.group(0)
+                        break
+            return title_text, year
         except Exception:
-            return ''
+            return '', ''
 
     @classmethod
     def _extract_embeds_from_page(cls, html):
@@ -127,7 +121,7 @@ class source:
         sv = meta.get('sv')
         play_url = f"https://etv-embed.help/e/getplay.php?id={id_}&sv={sv}"
         try:
-            r2 = requests.get(play_url, headers={'User-Agent': USER_AGENT, 'Referer': getembed_url}, allow_redirects=True)
+            r2 = requests.get(play_url, headers={'user-agent': USER_AGENT, 'Referer': getembed_url}, allow_redirects=True)
             if r2.status_code != 200:
                 return None
             if r2.history:
@@ -167,52 +161,47 @@ class source:
     @classmethod
     def search_movies(cls, imdb, year):
         links = []
-        title = cls.find_brazil_title(imdb) or cls.find_title(imdb)
+        title, imdb_year = cls.find_title(imdb)
         if not title:
             return links
         try:
-            query = quote_plus(cls.normalize_title(title))
+            query = quote_plus(title)
             search_url = cls.__site_url__[-1].rstrip('/') + '/pesquisar/?p=' + query
             r = cfscraper.get(search_url)
             if not r or r.status_code != 200 or "captcha" in r.text.lower():
                 return links
             soup = BeautifulSoup(r.text, 'html.parser')
-            results = soup.find_all('a', href=re.compile(r'/assistir-.*-\d{4}-\d+'))
-            movie_url = None
-            for item in results:
-                href = urljoin(cls.__site_url__[-1], item['href'])
-                found_title = item.get_text(strip=True).lower()
-                y_match = re.search(r'-(\d{4})-(\d+)/?$', href)
-                y = y_match.group(1) if y_match else None
-                t0 = cls.normalize_title(title)
-                if t0 in found_title.replace(' ', '-') or t0 in found_title:
-                    try:
-                        if y and int(year) == int(y):
-                            movie_url = href
-                            break
-                    except Exception:
-                        pass
-            if not movie_url:
-                return links
+            results = soup.find_all('a', href=re.compile(r'/assistir-.*-\d{4}-[^/]+'))
             movie_urls = {}
-            t0 = cls.normalize_title(title)
             for item in results:
                 href = urljoin(cls.__site_url__[-1], item['href'])
-                found_title = item.get_text(strip=True).lower()
-                y_match = re.search(r'-(\d{4})-(\d+)/?$', href)
-                y = y_match.group(1) if y_match else None
-                if (t0 in found_title.replace(' ', '-') or t0 in found_title) and y:
-                    try:
-                        if int(year) == int(y):
-                            if 'dublado' in href:
-                                movie_urls['dublado'] = href
-                            elif 'legendado' in href:
-                                movie_urls['legendado'] = href
-                    except Exception:
-                        pass
+                found_title = None
+                caption_div = item.find('div', class_='caption')
+                if caption_div:
+                    found_title = caption_div.find(text=True, recursive=False)
+                    if found_title:
+                        found_title = found_title.strip()
+                if not found_title:
+                    for tag in ['span', 'h2', 'div', 'p']:
+                        title_element = item.find(tag, class_=re.compile(r'title|name|movie-title|text', re.I))
+                        if title_element:
+                            found_title = title_element.get_text(strip=True)
+                            break
+                if not found_title:
+                    found_title = item.get_text(strip=True)
+                found_title_cleaned = re.sub(r'(?i)(dublado|legendado|\d{4}\d+min$)', '', found_title).strip()
+                y_match = re.search(r'-(\d{4})-([^/]+)/?$', href)
+                found_year = y_match.group(1) if y_match else None
+                title_similarity = difflib.SequenceMatcher(None, title, found_title_cleaned).ratio() * 100
+                if title_similarity >= 70 and found_year and int(year) == int(found_year):
+                    if not imdb_year or (imdb_year and found_year == imdb_year):
+                        if 'dublado' in href.lower():
+                            movie_urls['dublado'] = href
+                        elif 'legendado' in href.lower():
+                            movie_urls['legendado'] = href
             if not movie_urls:
-                movie_urls['dublado'] = movie_url
-            r = cfscraper.get(f"{movie_url}?area=online", headers={'Referer': cls.__site_url__[-1]})
+                return links
+            r = cfscraper.get(f"{movie_urls.get('dublado', movie_urls.get('legendado', ''))}?area=online", headers={'Referer': cls.__site_url__[-1]})
             if not r or r.status_code != 200 or "captcha" in r.text.lower():
                 return links
             embeds_final = []
@@ -227,7 +216,7 @@ class source:
                         sep = '&' if '?' in lang_url else '?'
                         lang_url = lang_url + sep + 'area=online'
                 else:
-                    lang_url = f"{movie_url}?area=online&audio={lang}"
+                    lang_url = f"{movie_urls.get('dublado', movie_urls.get('legendado', ''))}?area=online&audio={lang}"
                 rlang = cfscraper.get(lang_url, headers={'Referer': cls.__site_url__[-1]})
                 if not rlang or rlang.status_code != 200 or "captcha" in rlang.text.lower():
                     continue
@@ -246,36 +235,43 @@ class source:
     @classmethod
     def search_tvshows(cls, imdb, year, season, episode):
         links = []
-        title = cls.find_brazil_title(imdb) or cls.find_title(imdb)
+        title, imdb_year = cls.find_title(imdb)
         if not title:
             return links
         try:
-            query = quote_plus(cls.normalize_title(title))
+            query = quote_plus(title)
             search_url = cls.__site_url__[-1].rstrip('/') + '/pesquisar/?p=' + query
             r = cfscraper.get(search_url)
             if not r or r.status_code != 200 or "captcha" in r.text.lower():
                 return links
             soup = BeautifulSoup(r.text, 'html.parser')
-            results = soup.find_all('a', href=re.compile(r'/assistir-.*-\d{4}-\d+'))
+            results = soup.find_all('a', href=re.compile(r'/assistir-.*-\d{4}-[^/]+'))
             series_urls = {}
-            t0 = cls.normalize_title(title)
             for item in results:
                 href = urljoin(cls.__site_url__[-1], item['href'])
-                found_title = item.get_text(strip=True).lower()
-                y_match = re.search(r'-(\d{4})-(\d+)/?$', href)
-                y = y_match.group(1) if y_match else None
-                if t0 in found_title.replace(' ', '-') or t0 in found_title:
-                    year_match = True
-                    if y:
-                        try:
-                            year_match = int(year) == int(y)
-                        except Exception:
-                            year_match = False
-                    if year_match:
-                        if 'dublado' in href.lower():
-                            series_urls['dublado'] = href
-                        elif 'legendado' in href.lower():
-                            series_urls['legendado'] = href
+                found_title = None
+                caption_div = item.find('div', class_='caption')
+                if caption_div:
+                    found_title = caption_div.find(text=True, recursive=False)
+                    if found_title:
+                        found_title = found_title.strip()
+                if not found_title:
+                    for tag in ['span', 'h2', 'div', 'p']:
+                        title_element = item.find(tag, class_=re.compile(r'title|name|movie-title|text', re.I))
+                        if title_element:
+                            found_title = title_element.get_text(strip=True)
+                            break
+                if not found_title:
+                    found_title = item.get_text(strip=True)
+                found_title_cleaned = re.sub(r'(?i)(dublado|legendado|\d{4}\d+min$)', '', found_title).strip()
+                y_match = re.search(r'-(\d{4})-([^/]+)/?$', href)
+                found_year = y_match.group(1) if y_match else None
+                title_similarity = difflib.SequenceMatcher(None, title, found_title_cleaned).ratio() * 100
+                if title_similarity >= 70 and found_year and (not imdb_year or found_year == imdb_year) and int(year) == int(found_year):
+                    if 'dublado' in href.lower():
+                        series_urls['dublado'] = href
+                    elif 'legendado' in href.lower():
+                        series_urls['legendado'] = href
             if not series_urls:
                 return links
             embeds_final = []
