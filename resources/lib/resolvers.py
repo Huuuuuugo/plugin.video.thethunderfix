@@ -309,11 +309,14 @@ class Resolver:
     @classmethod
     def resolve_doodstream(cls, url, referer):
         stream = ''
+        subtitles = {}
         try:
             parsed = urlparse(url)
             host = parsed.netloc
             if any(host.endswith(x) for x in ['.cx', '.wf']):
                 host = 'dood.so'
+            if host not in ['doodstream.com', 'vidply.com', 'all3do.com', 'vide0.net', 'dsvplay.com']:
+                host = 'dsvplay.com'
             media_id = re.search(r'/[de]/([0-9a-zA-Z]+)', url).group(1)
             web_url = f"https://{host}/d/{media_id}"
             headers = {'User-Agent': cls.FF_USER_AGENT, 'Referer': f'https://{host}/'}
@@ -323,6 +326,11 @@ class Resolver:
                 web_url = f"https://{host}/d/{media_id}"
             headers['Referer'] = web_url
             html = r.text
+            matches = re.findall(r"""dsplayer\.addRemoteTextTrack\({src:'([^']+)',\s*label:'([^']*)',kind:'captions'""", html)
+            if matches:
+                matches = [(src, label) for src, label in matches if len(label) > 1]
+                for src, label in matches:
+                    subtitles[label] = 'https:' + src if src.startswith('//') else src
             match = re.search(r'<iframe\s*src="([^"]+)', html)
             if match:
                 iframe = match.group(1)
@@ -348,7 +356,7 @@ class Resolver:
                     stream = decoded + token + timestamp + cls.append_headers(headers)
         except Exception:
             pass
-        return stream
+        return stream, subtitles
 
     @classmethod
     def resolve_warezcdn(cls, url, referer):
@@ -467,7 +475,7 @@ class Resolver:
         elif domain in filemoon_domains:
             stream = cls.resolve_filemoon(url, referer)
         elif domain in dood_domains:
-            stream = cls.resolve_doodstream(url, referer)
+            stream, sub = cls.resolve_doodstream(url, referer)
         elif domain in warez_domains:
             stream = cls.resolve_warezcdn(url, referer)
         elif domain in ['brplayer.site', 'watch.brplayer.site']:
