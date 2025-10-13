@@ -46,14 +46,19 @@ except ImportError:
 class source:
     @classmethod
     def find_title(cls, imdb):
-        url = f'https://www.imdb.com/pt/title/{imdb}'
+        url = f'https://m.imdb.com/pt/title/{imdb}'
         try:
             r = cfscraper.get(url)
             if not r or r.status_code != 200:
-                return '', ''
+                return '', '', ''
             soup = BeautifulSoup(r.text, 'html.parser')
             title = soup.find('h1', {'data-testid': 'hero__pageTitle'})
             title_text = title.find('span').text if title else ''
+            original_title = ''
+            original_title_element = soup.find('div', class_='sc-cb6a22b2-1 kEdApw baseAlt')
+            if original_title_element:
+                original_title_text = original_title_element.get_text(strip=True)
+                original_title = original_title_text.replace('Título original:', '').strip()
             year = ''
             year_element = soup.find('a', {'class': re.compile(r'ipc-link.*titleYear')})
             if year_element:
@@ -73,9 +78,15 @@ class source:
                     if year_match:
                         year = year_match.group(0)
                         break
-            return title_text, year
-        except Exception:
-            return '', ''
+            if not year:
+                release_date = soup.find('span', class_='sc-1f719d57-1 ePuhDr')
+                if release_date:
+                    year_match = re.search(r'\d{4}', release_date.text)
+                    if year_match:
+                        year = year_match.group(0)
+            return title_text, original_title, year
+        except:
+            return '', '', ''
 
     @classmethod
     def _extract_embeds_from_page(cls, html):
@@ -105,7 +116,7 @@ class source:
         }
         try:
             requests.get(referer_url, headers=headers)
-        except Exception:
+        except:
             pass
         headers_embed = {
             'User-Agent': USER_AGENT,
@@ -115,7 +126,7 @@ class source:
             r1 = requests.get(getembed_url, headers=headers_embed)
             if r1.status_code != 200:
                 return None
-        except Exception:
+        except:
             return None
         id_ = meta.get('id')
         sv = meta.get('sv')
@@ -155,14 +166,14 @@ class source:
             if not final_video:
                 return None
             return final_video
-        except Exception:
+        except:
             return None
 
     @classmethod
     def search_movies(cls, imdb, year):
         links = []
-        title, imdb_year = cls.find_title(imdb)
-        if not title:
+        title, original_title, imdb_year = cls.find_title(imdb)
+        if not title and not original_title:
             return links
         try:
             query = quote_plus(title)
@@ -193,7 +204,9 @@ class source:
                 y_match = re.search(r'-(\d{4})-([^/]+)/?$', href)
                 found_year = y_match.group(1) if y_match else None
                 title_similarity = difflib.SequenceMatcher(None, title, found_title_cleaned).ratio() * 100
-                if title_similarity >= 70 and found_year and int(year) == int(found_year):
+                original_title_similarity = difflib.SequenceMatcher(None, original_title, found_title_cleaned).ratio() * 100 if original_title else 0
+                max_similarity = max(title_similarity, original_title_similarity)
+                if max_similarity >= 70 and found_year and int(year) == int(found_year):
                     if not imdb_year or (imdb_year and found_year == imdb_year):
                         if 'dublado' in href.lower():
                             movie_urls['dublado'] = href
@@ -229,13 +242,13 @@ class source:
                         name = f"{server_name} - {lang_label}"
                         embeds_final.append((name, final_video))
             return embeds_final
-        except Exception:
+        except:
             return links
 
     @classmethod
     def search_tvshows(cls, imdb, year, season, episode):
         links = []
-        title, imdb_year = cls.find_title(imdb)
+        title, original_title, imdb_year = cls.find_title(imdb)
         if not title:
             return links
         try:
@@ -267,11 +280,14 @@ class source:
                 y_match = re.search(r'-(\d{4})-([^/]+)/?$', href)
                 found_year = y_match.group(1) if y_match else None
                 title_similarity = difflib.SequenceMatcher(None, title, found_title_cleaned).ratio() * 100
-                if title_similarity >= 70 and found_year and (not imdb_year or found_year == imdb_year) and int(year) == int(found_year):
-                    if 'dublado' in href.lower():
-                        series_urls['dublado'] = href
-                    elif 'legendado' in href.lower():
-                        series_urls['legendado'] = href
+                original_title_similarity = difflib.SequenceMatcher(None, original_title, found_title_cleaned).ratio() * 100 if original_title else 0
+                max_similarity = max(title_similarity, original_title_similarity)
+                if max_similarity >= 70 and found_year:
+                    if not imdb_year or (imdb_year and found_year == imdb_year):
+                        if 'dublado' in href.lower():
+                            series_urls['dublado'] = href
+                        elif 'legendado' in href.lower():
+                            series_urls['legendado'] = href
             if not series_urls:
                 return links
             embeds_final = []
@@ -279,16 +295,19 @@ class source:
             for lang in languages:
                 series_url = series_urls.get(lang)
                 if not series_url:
+                    if lang == 'legendado' and series_urls.get('dublado'):
+                        series_url = series_urls['dublado'].replace('dublado', 'legendado')
+                if not series_url:
                     continue
                 r = cfscraper.get(series_url, headers={'Referer': cls.__site_url__[-1]})
                 if not r or r.status_code != 200 or "captcha" in r.text.lower():
                     continue
                 soup = BeautifulSoup(r.text, 'html.parser')
-                episode_links = soup.find_all('a', href=re.compile(r'/assistir-.*-\d+x\d+-[a-z]+(?:-[a-z]+\d+)?-\d+'))
+                episode_links = soup.find_all('a', href=re.compile(r'/assistir-.*-(\d+)x(\d+)-([a-z]+)(?:-[a-z0-9]+)?-\d+/?$'))
                 episode_url = None
                 for item in episode_links:
                     href = urljoin(cls.__site_url__[-1], item['href'])
-                    ep_match = re.search(r'-(\d+)x(\d+)-([a-z]+)(?:-[a-z]+\d+)?-(\d+)/?$', href, re.I)
+                    ep_match = re.search(r'-(\d+)x(\d+)-([a-z]+)(?:-[a-z0-9]+)?-(\d+)/?$', href, re.I)
                     if ep_match:
                         found_season = int(ep_match.group(1))
                         found_episode = int(ep_match.group(2))
@@ -298,6 +317,24 @@ class source:
                             found_lang_in_url in lang_variations):
                             episode_url = href
                             break
+                if not episode_url:
+                    season_url = f"{series_url.rstrip('/')}?temporada={season}"
+                    r_season = cfscraper.get(season_url, headers={'Referer': cls.__site_url__[-1]})
+                    if r_season and r_season.status_code == 200 and "captcha" not in r_season.text.lower():
+                        soup_season = BeautifulSoup(r_season.text, 'html.parser')
+                        episode_links = soup_season.find_all('a', href=re.compile(r'/assistir-.*-(\d+)x(\d+)-([a-z]+)(?:-[a-z0-9]+)?-\d+/?$'))
+                        for item in episode_links:
+                            href = urljoin(cls.__site_url__[-1], item['href'])
+                            ep_match = re.search(r'-(\d+)x(\d+)-([a-z]+)(?:-[a-z0-9]+)?-(\d+)/?$', href, re.I)
+                            if ep_match:
+                                found_season = int(ep_match.group(1))
+                                found_episode = int(ep_match.group(2))
+                                found_lang_in_url = ep_match.group(3).lower()
+                                lang_variations = [lang, 'leg'] if lang == 'legendado' else [lang]
+                                if (found_season == int(season) and found_episode == int(episode) and 
+                                    found_lang_in_url in lang_variations):
+                                    episode_url = href
+                                    break
                 if not episode_url:
                     continue
                 lang_label = portuguese if lang == 'dublado' else english
@@ -314,7 +351,7 @@ class source:
                         name = f"{server_name} - {lang_label}"
                         embeds_final.append((name, final_video))
             return embeds_final
-        except Exception:
+        except:
             return links
 
     __site_url__ = ['https://overflixtv.ltd/']
@@ -337,7 +374,7 @@ class source:
             resolved, sub_from_resolver = resolveurl(stream, referer=None)
             if resolved:
                 streams.append((resolved, sub if sub else sub_from_resolver, USER_AGENT))
-        except Exception:
+        except:
             pass
         return streams
 
