@@ -103,7 +103,7 @@ class source:
             if not match:
                 continue
             player_id, server = match.groups()
-            getembed = f"https://etv-embed.help/e/getembed.php?sv={server}&id={player_id}&site=overflix&token={token}"
+            getembed = f"https://etv-embed.bond/e/getembed.php?sv={server}&id={player_id}&site=overflix&token={token}"
             server_name = server.upper()
             embeds.append((server_name, getembed, {'id': player_id, 'sv': server, 'token': token}))
         return embeds
@@ -130,7 +130,7 @@ class source:
             return None
         id_ = meta.get('id')
         sv = meta.get('sv')
-        play_url = f"https://etv-embed.help/e/getplay.php?id={id_}&sv={sv}"
+        play_url = f"https://etv-embed.bond/e/getplay.php?id={id_}&sv={sv}"
         try:
             r2 = requests.get(play_url, headers={'user-agent': USER_AGENT, 'Referer': getembed_url}, allow_redirects=True)
             if r2.status_code != 200:
@@ -354,7 +354,7 @@ class source:
         except:
             return links
 
-    __site_url__ = ['https://overflixtv.ltd/']
+    __site_url__ = ['https://overflixtv.dog/']
 
     @classmethod
     def resolve_movies(cls, url):
